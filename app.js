@@ -1,4 +1,11 @@
-require('dotenv').config();
+// Load environment variables from .env file if it exists
+try {
+  require('dotenv').config();
+  console.log('Loaded environment variables from .env file');
+} catch (err) {
+  console.log('No .env file found, using default values');
+}
+
 const express = require('express');
 const axios = require('axios');
 const bodyParser = require('body-parser');
@@ -39,6 +46,7 @@ console.log(`PORT: ${port}`);
 // Import Redis utility
 const redisUtil = require('./utils/redis');
 const client = redisUtil.client;
+const { getRedisValue, storeRedisValue, initializeDefaultSettings } = redisUtil;
 
 const createRweHash = async (rweid, threat, description, reference) => {
   const hashKey = `rwe:${rweid}`;
@@ -384,16 +392,7 @@ const LLM_PROVIDER_REDIS_KEY = 'settings:llm:provider';
 const OPENAI_MODEL_REDIS_KEY = 'settings:openai:model';
 const OLLAMA_MODEL_REDIS_KEY = 'settings:ollama:model';
 
-// Helper function to get Redis value with default
-async function getRedisValue(key, defaultValue = null) {
-  try {
-    const value = await client.get(key);
-    return value || defaultValue;
-  } catch (error) {
-    console.error(`Error retrieving value for ${key}:`, error);
-    return defaultValue;
-  }
-}
+// Using getRedisValue and storeRedisValue imported from redis.js
 
 // Updated /ask route to handle summaries as prompts and track LLM activity
 app.post('/ask', ensureAuthenticated, async (req, res) => {
@@ -1316,12 +1315,34 @@ app.post('/generate-more', ensureAuthenticated, async (req, res) => {
     debugData.existingResponseLength = existingResponse.length;
     
     // Get the LLM provider and model
-    const llmProvider = await getRedisValue(LLM_PROVIDER_REDIS_KEY, 'openai');
-    console.log(`Current LLM provider from Redis: ${llmProvider}`);
+    console.log('Retrieving LLM provider from Redis key:', LLM_PROVIDER_REDIS_KEY);
+    let llmProvider;
+    try {
+      const rawValue = await client.get(LLM_PROVIDER_REDIS_KEY);
+      console.log(`Raw Redis value for ${LLM_PROVIDER_REDIS_KEY}:`, rawValue);
+      
+      llmProvider = rawValue || 'openai'; // Default to 'openai' if null/undefined
+      console.log(`Current LLM provider from Redis: ${llmProvider}`);
+      
+      // If provider value is empty or invalid, store the default one
+      if (!rawValue || (rawValue !== 'openai' && rawValue !== 'ollama')) {
+        console.log(`Invalid or missing LLM provider value, setting default: openai`);
+        await client.set(LLM_PROVIDER_REDIS_KEY, 'openai');
+        llmProvider = 'openai';
+      }
+    } catch (error) {
+      console.error('Error retrieving LLM provider from Redis:', error);
+      llmProvider = 'openai'; // Default to 'openai' on error
+      console.log(`Using default LLM provider due to error: ${llmProvider}`);
+    }
+    
     debugData.llmProvider = llmProvider;
+    debugData.llmProviderRedisKey = LLM_PROVIDER_REDIS_KEY;
     
     // Determine if we should use Ollama
     const isOllama = llmProvider === 'ollama';
+    console.log(`Is using Ollama: ${isOllama}`);
+    debugData.isUsingOllama = isOllama;
     
     // Get appropriate model based on the provider
     let model;
@@ -2330,9 +2351,29 @@ app.get('/test-analyzer', ensureAuthenticated, async (req, res) => {
   }
 });
 
-app.listen(port, () => {
-  console.log(`Server is running on http://localhost:${port}`);
-  
-  // Initialize and schedule LLM API status checks (check every 60 minutes)
-  scheduler.scheduleApiChecks(60);
-});
+// Initialize Redis connection and settings before starting the server
+(async () => {
+  try {
+    // Connect to Redis
+    await redisUtil.connect();
+    console.log('Connected to Redis successfully!');
+    
+    // Initialize default settings if they don't exist
+    await initializeDefaultSettings();
+    
+    // Log current LLM provider to verify settings
+    const currentProvider = await getRedisValue('settings:llm:provider', 'openai');
+    console.log(`Current LLM provider: ${currentProvider}`);
+    
+    // Start the server after Redis is ready
+    app.listen(port, () => {
+      console.log(`Server is running on http://localhost:${port}`);
+      
+      // Initialize and schedule LLM API status checks (check every 60 minutes)
+      scheduler.scheduleApiChecks(60);
+    });
+  } catch (error) {
+    console.error('Failed to initialize application:', error);
+    process.exit(1);
+  }
+})();

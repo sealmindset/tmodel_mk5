@@ -1,0 +1,209 @@
+<%- include('partials/header', { pageTitle: 'Create Threat Model', active: 'create', extraCss: [] }) %>
+
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="mb-0">Create a New Threat Model</h1>
+    <div class="btn-group">
+      <a href="/" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>Back to Dashboard
+      </a>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <form id="threatModelForm" action="/ask" method="POST" onsubmit="console.log('Form submitting with subject:', document.getElementById('subject').value)">
+        <!-- Form content from original index.ejs, but without the troublesome div -->
+        <div class="mb-3">
+          <label for="subject" class="form-label">System to Analyze</label>
+          <input type="text" class="form-control" id="subject" name="subject" placeholder="e.g., Web Application, Mobile App, API Service">
+        </div>
+        
+
+
+        <div class="mb-3">
+          <label for="aiModel" class="form-label">AI Model to Use</label>
+          <select class="form-select" id="aiModel" name="model">
+            <% if (llmProvider === 'ollama') { %>
+              <% availableOllamaModels.forEach(model => { %>
+                <option value="<%= model.name %>" <%= ollamaModel === model.name ? 'selected' : '' %>><%= model.name %></option>
+              <% }); %>
+            <% } else { %>
+              <option value="gpt-3.5-turbo" <%= openaiModel === 'gpt-3.5-turbo' ? 'selected' : '' %>>GPT-3.5 Turbo</option>
+              <option value="gpt-4" <%= openaiModel === 'gpt-4' ? 'selected' : '' %>>GPT-4</option>
+              <option value="gpt-4-turbo" <%= openaiModel === 'gpt-4-turbo' ? 'selected' : '' %>>GPT-4 Turbo</option>
+            <% } %>
+          </select>
+          <div class="form-text">
+            <% if (llmProvider === 'ollama') { %>
+              Using local Ollama models. <a href="/api-settings">Change provider in settings</a>.
+            <% } else { %>
+              Using OpenAI API. <a href="/api-settings">Change provider in settings</a>.
+            <% } %>
+          </div>
+        </div>
+
+        <!-- Prompt selection fields -->
+        <div class="mb-3">
+          <label for="promptId" class="form-label">Prompt Template</label>
+          <div class="input-group">
+            <input type="hidden" id="promptId" name="selectedPromptId">
+            <input type="text" class="form-control" id="promptTitle" name="promptTitle" placeholder="Select a prompt template" readonly>
+            <button class="btn btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#promptsModal">
+              <i class="bi bi-list"></i> Select
+            </button>
+          </div>
+        </div>
+
+        <div class="d-grid gap-2 mb-3">
+          <button type="button" class="btn btn-primary" id="submitBtn">
+            <i class="bi bi-lightning me-1"></i>Generate Threat Model
+          </button>
+        </div>
+
+
+
+        <script>
+          console.log('Script loaded - setting up event handlers');
+
+          // Check if button exists
+          console.log('Submit button exists:', !!document.getElementById('submitBtn'));
+          
+          // Store server-provided settings
+          const serverSettings = {
+            llmProvider: '<%= llmProvider %>',
+            openaiModel: '<%= openaiModel %>',
+            ollamaModel: '<%= ollamaModel %>'
+          };
+          
+          console.log('Server settings:', serverSettings);
+
+          // Function to handle form submission
+          function submitThreatModelForm() {
+            // Get essential values
+            const subjectText = document.getElementById('subject').value;
+            const modelValue = document.getElementById('aiModel').value;
+            
+            // Validate essential fields
+            if (!subjectText) {
+              alert('Please enter a system to analyze');
+              return false;
+            }
+            
+            console.log('Submitting with subject:', subjectText);
+            console.log('Model:', modelValue);
+            
+            // Get the selected prompt if applicable
+            const selectedPromptId = document.getElementById('promptId').value;
+            
+            console.log('Selected prompt ID:', selectedPromptId || 'none (using default template)');
+            console.log('Using LLM Provider:', serverSettings.llmProvider);
+            
+            // Create a simplified form with only the essential fields
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/ask';
+            
+            // Add the subject field
+            const subjectField = document.createElement('input');
+            subjectField.type = 'hidden';
+            subjectField.name = 'subject';
+            subjectField.value = subjectText;
+            form.appendChild(subjectField);
+            
+            // Add the model field
+            const modelField = document.createElement('input');
+            modelField.type = 'hidden';
+            modelField.name = 'model';
+            modelField.value = modelValue;
+            form.appendChild(modelField);
+            
+            // Add the selected prompt ID
+            if (selectedPromptId) {
+              const promptIdField = document.createElement('input');
+              promptIdField.type = 'hidden';
+              promptIdField.name = 'selectedPromptId';
+              promptIdField.value = selectedPromptId;
+              form.appendChild(promptIdField);
+              console.log('Added promptId to form:', selectedPromptId);
+            } else {
+              console.log('No prompt ID selected, using default template');
+            }
+            
+            // Add the LLM provider
+            const providerField = document.createElement('input');
+            providerField.type = 'hidden';
+            providerField.name = 'llmProvider';
+            providerField.value = serverSettings.llmProvider;
+            form.appendChild(providerField);
+            
+            // Submit the form
+            document.body.appendChild(form);
+            form.submit();
+            return false;
+          }
+          
+          // Initialize the model select based on settings
+          function initializeModelSelect() {
+            const modelSelect = document.getElementById('aiModel');
+            if (!modelSelect) return;
+            
+            // The template already handles the selected attribute, but let's make sure it's reflected in the UI
+            if (serverSettings.llmProvider === 'ollama') {
+              console.log('Setting default Ollama model:', serverSettings.ollamaModel);
+              // The template should have already set the selected attribute
+            } else {
+              console.log('Setting default OpenAI model:', serverSettings.openaiModel);
+              // The template should have already set the selected attribute
+            }
+          }
+          
+          // Make sure all handlers are registered once DOM is fully loaded
+          document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM fully loaded - setting up additional handlers');
+            
+            // Initialize the model select
+            initializeModelSelect();
+            
+            // Add event handler for the main submit button
+            const submitBtn = document.getElementById('submitBtn');
+            if (submitBtn) {
+              console.log('Adding click handler to submit button');
+              submitBtn.addEventListener('click', function() {
+                console.log('Submit button clicked!');
+                submitThreatModelForm();
+              });
+              console.log('Submit button handler added successfully');
+            } else {
+              console.error('Submit button not found in DOM!');
+            }
+          });
+          
+          // Add direct click handler as well for redundancy
+          if (document.getElementById('submitBtn')) {
+            document.getElementById('submitBtn').onclick = function() { 
+              console.log('Submit button clicked via onclick property');
+              submitThreatModelForm();
+              return false;
+            };
+          }
+          
+          // Handle form submission (as a fallback)
+          document.getElementById('threatModelForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            console.log('Form submission event triggered');
+            submitThreatModelForm();
+          });
+        </script>
+        
+
+      </form>
+      
+
+    </div>
+  </div>
+</div>
+
+
+
+<%- include('partials/footer', { extraJs: ['/js/app.js', '/js/prompts-manager.js'] }) %>

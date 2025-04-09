@@ -1,0 +1,31 @@
+/* Modal visibility fixes */
+#llmActivityModal.show {
+  display: block !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  padding-right: 17px !important;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1050 !important;
+}
+
+#llmActivityModal .modal-dialog {
+  transform: none !important;
+  transition: none !important;
+  margin: 1.75rem auto !important;
+  max-width: 800px;
+  display: block !important;
+}
+
+#llmActivityModal .modal-content {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.modal-backdrop.show {
+  opacity: 0.5 !important;
+}
+
+body.modal-open {
+  overflow: hidden !important;
+  padding-right: 17px !important;
+}

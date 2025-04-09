@@ -1,0 +1,46 @@
+{
+  "name": "tmodeler",
+  "version": "1.0.0",
+  "description": "**Version**: 1.0   **Author**: sealmindset",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node app.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "apollo-server-express": "^3.13.0",
+    "axios": "^1.8.4",
+    "bcrypt": "^5.1.1",
+    "body-parser": "^1.20.3",
+    "connect-redis": "^7.1.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "ejs": "^3.1.10",
+    "express": "^4.21.2",
+    "express-session": "^1.18.1",
+    "graphql": "^16.9.0",
+    "graphql-http": "^1.22.1",
+    "graphql-tools": "^9.0.1",
+    "multer": "^1.4.5-lts.2",
+    "natural": "^6.12.0",
+    "natural-compare": "^1.4.0",
+    "nodemon": "^3.1.4",
+    "openai": "^3.3.0",
+    "redis": "^4.7.0",
+    "uuid": "^11.1.0"
+  },
+  "devDependencies": {
+    "babel-preset-env": "^0.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sealmindset/tmodel_mk2.git"
+  },
+  "bugs": {
+    "url": "https://github.com/sealmindset/tmodel_mk2/issues"
+  },
+  "homepage": "https://github.com/sealmindset/tmodel_mk2#readme"
+}

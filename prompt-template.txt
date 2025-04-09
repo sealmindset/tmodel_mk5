@@ -1,0 +1,17 @@
+Analyze the following system for security threats and vulnerabilities: SUBJECT
+
+Please provide a comprehensive threat model that includes:
+1. The top 8-12 security threats to this system
+2. Impact assessment for each threat
+3. Mitigation strategies for each threat
+4. Risk assessment (High/Medium/Low) for each threat
+
+For each threat, please include:
+- Threat name/type
+- Description
+- Potential impact
+- Likelihood
+- Recommended mitigations
+- Overall risk level
+
+Please format your response in a clear, structured way that would be suitable for a security report.

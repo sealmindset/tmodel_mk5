@@ -1,0 +1,1463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Framework Blocker must load first to intercept and disable unwanted components -->  
+  <script src="/js/framework-blocker.js"></script>
+  
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Threat Model Generator</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+  <link rel="stylesheet" href="/css/main.css">
+  
+  <!-- Simple validation style adjustments -->
+  <style>
+    /* Simplified hiding of unwanted UI elements */
+    [data-component-name] {
+      display: none !important;
+    }
+  </style>
+</head>
+<body class="fade-in hide-container-divs">
+  <!-- Simple CSS to hide unwanted elements with data-component-name -->
+  <style>
+    [data-component-name] {
+      display: none !important;
+    }
+  </style>
+
+  <!-- Simple hiding style for unwanted elements -->
+  <style>
+    /* Just hide the elements with data-component-name */
+    [data-component-name] {
+      display: none !important;
+    }
+  </style>
+  <% if (user) { %>
+  <!-- Modern Top Navigation Bar -->
+  <nav class="navbar navbar-expand-lg navbar-light sticky-top">
+    <div class="container">
+      <a class="navbar-brand d-flex align-items-center" href="/">
+        <i class="bi bi-shield-lock me-2 fs-4"></i>
+        Threat Model Generator
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" 
+              aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav ms-auto">
+          <li class="nav-item">
+            <a class="nav-link active" href="/" data-bs-toggle="tooltip" title="Return to Home">
+              <i class="bi bi-house-door me-1"></i> Home
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#modelsModal" 
+               data-bs-toggle="tooltip" title="Manage Models">
+              <i class="bi bi-diagram-3 me-1"></i> Models
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#promptsModal" 
+               data-bs-toggle="tooltip" title="Manage Prompts">
+              <i class="bi bi-chat-left-text me-1"></i> Prompts
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#userManagementModal" 
+               data-bs-toggle="tooltip" title="Application Settings">
+              <i class="bi bi-gear me-1"></i> Settings
+            </a>
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link" href="/logout" data-bs-toggle="tooltip" title="Sign Out">
+              <i class="bi bi-box-arrow-right me-1"></i> Logout
+            </a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content Container -->
+  <div class="container py-4">
+
+    <!-- New Threat Model Form -->
+    <div class="row mb-4">
+      <div class="col-lg-8 mx-auto">
+        <div class="card">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Create New Threat Model</h5>
+            <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" 
+                    data-bs-target="#newModelForm" aria-expanded="true">
+              <i class="bi bi-chevron-up"></i>
+            </button>
+          </div>
+          <div class="card-body collapse show" id="newModelForm">
+            <form id="threatModelForm" action="/ask" method="post" onsubmit="return handleFormSubmission(event)" class="needs-validation" novalidate>
+              <div class="mb-3">
+                <label for="tm-prompt" class="form-label">TM Prompt</label>
+                <div class="input-group">
+                  <span class="input-group-text"><i class="bi bi-chat-square-text"></i></span>
+                  <input type="text" class="form-control" id="tm-prompt" name="tm-prompt" readonly>
+                </div>
+              </div>
+              <div class="mb-3">
+                <label for="subject" class="form-label">Threat Model Description</label>
+                <textarea class="form-control" id="subject" name="subject" rows="3" required 
+                          placeholder="Describe your application or system for threat modeling"></textarea>
+                <div class="invalid-feedback">Please provide a description of your system.</div>
+              </div>
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <label for="model" class="form-label">Select Model</label>
+                  <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-cpu"></i></span>
+                    <select class="form-select" id="model" name="model">
+                      <% models.forEach((model) => { %>
+                        <option value="<%= model %>"><%= model %></option>
+                      <% }) %>
+                    </select>
+                  </div>
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label for="apiKey" class="form-label">ChatGPT API Key</label>
+                  <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-key"></i></span>
+                    <input type="text" class="form-control" id="apiKey" name="apiKey" value="<%= user.apiKey || '' %>" required>
+                    <div class="invalid-feedback">API Key is required.</div>
+                  </div>
+                </div>
+              </div>
+              <input type="hidden" id="selectedPromptId" name="selectedPromptId">
+              <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                <button type="submit" class="btn btn-primary">
+                  <i class="bi bi-send me-1"></i> Generate Threat Model
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Simple approach - let's focus on minimal interference -->
+  
+  <!-- Improved Clean Bootstrap Threat Models Section -->
+  <section id="bootstrap-threat-models" class="mt-4">
+    <div class="card shadow-sm border-0">
+      <div class="card-header bg-light py-3">
+        <div class="row align-items-center">
+          <div class="col-md-6">
+            <h5 class="mb-0 fw-bold text-primary"><i class="bi bi-shield-exclamation me-2"></i>Your Threat Models</h5>
+          </div>
+          <div class="col-md-6">
+            <div class="input-group">
+              <input type="text" class="form-control" id="searchModels" placeholder="Search models...">
+              <button class="btn btn-outline-primary" type="button">
+                <i class="bi bi-search"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card-body p-0">
+        <% if (subjects && subjects.length > 0) { %>
+        <div class="table-responsive">
+          <table class="table table-hover mb-0" id="threat-models-table">
+            <thead class="table-light">
+              <tr>
+                <th width="40">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="selectAll">
+                  </div>
+                </th>
+                <th>Title</th>
+                <th class="d-none d-md-table-cell">Model</th>
+                <th width="150">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% subjects.forEach(subject => { %>
+                <tr data-id="<%= subject.subjectid %>">
+                  <td>
+                    <div class="form-check">
+                      <input class="form-check-input subject-checkbox" type="checkbox" value="<%= subject.subjectid %>">
+                    </div>
+                  </td>
+                  <td class="fw-medium"><%= subject.title %></td>
+                  <td class="d-none d-md-table-cell" id="model-<%= subject.subjectid %>">Loading...</td>
+                  <td>
+                    <div class="btn-group" role="group">
+                      <a href="/view/<%= subject.subjectid %>" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-eye"></i>
+                      </a>
+                      <button type="button" class="btn btn-sm btn-outline-secondary" onclick="showSummaryPromptModal('<%= subject.subjectid %>')">
+                        <i class="bi bi-file-earmark-text"></i>
+                      </button>
+                      <button type="button" class="btn btn-sm btn-outline-danger" onclick="confirmDelete('<%= subject.subjectid %>', '<%= subject.title %>')">
+                        <i class="bi bi-trash"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+        <% } else { %>
+        <div class="text-center py-5">
+          <i class="bi bi-shield-exclamation text-muted fs-1"></i>
+          <h4 class="mt-3">No Threat Models Yet</h4>
+          <p class="text-muted">Get started by creating your first threat model</p>
+          <button class="btn btn-primary mt-2" data-bs-toggle="modal" data-bs-target="#createModelModal">
+            <i class="bi bi-plus-circle me-1"></i> Create New Model
+          </button>
+        </div>
+        <% } %>
+      </div>
+      <% if (subjects && subjects.length > 0) { %>
+      <div class="card-footer bg-light py-3">
+        <div class="row align-items-center">
+          <div class="col-6">
+            <button id="deleteSelectedBtn" class="btn btn-danger btn-sm" disabled>
+              <i class="bi bi-trash me-1"></i>Delete Selected
+            </button>
+          </div>
+          <div class="col-6">
+            <nav aria-label="Page navigation">
+              <ul class="pagination pagination-sm justify-content-end mb-0">
+                <% if (currentPage > 1) { %>
+                  <li class="page-item">
+                    <a class="page-link" href="/?page=<%= currentPage - 1 %>">&laquo;</a>
+                  </li>
+                <% } %>
+                
+                <% for(let i = 1; i <= totalPages; i++) { %>
+                  <li class="page-item <%= i === currentPage ? 'active' : '' %>">
+                    <a class="page-link" href="/?page=<%= i %>"><%= i %></a>
+                  </li>
+                <% } %>
+                
+                <% if (currentPage < totalPages) { %>
+                  <li class="page-item">
+                    <a class="page-link" href="/?page=<%= currentPage + 1 %>">&raquo;</a>
+                  </li>
+                <% } %>
+              </ul>
+            </nav>
+          </div>
+        </div>
+      </div>
+      <% } %>
+    </div>
+  </section>
+  <!-- END Improved Clean Bootstrap Threat Models Section -->
+
+    <!-- Generic Confirm Delete Modal -->
+    <div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Confirm Deletion</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <p id="deleteMessage"></p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">No</button>
+            <button type="button" class="btn btn-danger" id="confirmDeleteButton">Yes</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Template Modal -->
+    <div class="modal fade" id="templateModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Edit Prompt</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form id="edit-template-form">
+              <div class="mb-3">
+                <label for="prompt-template" class="form-label">Prompt Template</label>
+                <textarea class="form-control" id="prompt-template" rows="6"></textarea>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            <button type="button" class="btn btn-primary" onclick="saveTemplate('template')">Save changes</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- User Management Modal -->
+    <div class="modal fade" id="userManagementModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">User Management</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <ul id="userList" class="list-group"></ul>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- User Details Modal -->
+    <div class="modal fade" id="userDetailsModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">User Details</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form id="edit-user-form">
+              <div class="mb-3">
+                <label for="userName" class="form-label">Name</label>
+                <input type="text" class="form-control" id="userName">
+              </div>
+              <div class="mb-3">
+                <label for="userEmail" class="form-label">Email</label>
+                <input type="email" class="form-control" id="userEmail" readonly>
+              </div>
+              <div class="mb-3">
+                <label for="userRegistered" class="form-label">Registered</label>
+                <input type="checkbox" class="form-check-input" id="userRegistered">
+              </div>
+              <div class="mb-3">
+                <label for="userApiKey" class="form-label">ChatGPT API Key</label>
+                <input type="text" class="form-control" id="userApiKey">
+              </div>
+              <hr>
+              <div class="mt-4 border-top pt-4">
+                <h5><i class="bi bi-key me-2"></i>Password Management</h5>
+                <a href="#" class="btn btn-warning mt-2" id="resetPasswordLink">
+                  <i class="bi bi-key me-1"></i>Reset User Password
+                </a>
+                
+                <!-- Moved script to global scope to ensure it runs properly -->
+                <script>
+                  document.addEventListener('DOMContentLoaded', function() {
+                    // Update the password reset link whenever a user is loaded in the modal
+                    function updatePasswordResetLink() {
+                      const link = document.getElementById('resetPasswordLink');
+                      const emailInput = document.getElementById('userEmail');
+                      if (link && emailInput && emailInput.value) {
+                        const email = emailInput.value;
+                        console.log('Setting password reset link for:', email);
+                        link.href = `/reset-password?email=${encodeURIComponent(email)}`;
+                        link.onclick = function() {
+                          console.log('Password reset link clicked for:', email);
+                        };
+                      }
+                    }
+                    
+                    // Make the function global so it can be called from other places
+                    window.updatePasswordResetLink = updatePasswordResetLink;
+                    
+                    // Update link when user details are loaded
+                    document.addEventListener('userDetailsLoaded', function() {
+                      console.log('User details loaded event received');
+                      updatePasswordResetLink();
+                    });
+                  });
+                </script>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-danger" onclick="initiateUserDeletion()">Delete</button>
+            <button type="button" class="btn btn-primary" onclick="updateUser()">Update</button>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h1 class="text-center mb-5">Threat Models</h1>
+
+    <!-- Search bar -->
+    <div class="mb-4 position-relative">
+      <input type="text" id="search-bar" class="form-control" placeholder="Search by title...">
+      <div id="autocomplete-list" class="autocomplete-suggestions"></div>
+    </div>
+
+    <!-- Subjects List -->
+    <div class="row">
+      <% subjects.forEach((subjectObj) => { %>
+        <div class="col-md-4 mb-4">
+          <div class="card">
+            <div class="card-body">
+              <h5 class="card-title"><%= subjectObj.title %></h5>
+              <a href="/results?subjectid=<%= encodeURIComponent(subjectObj.subjectid) %>" class="btn btn-primary">View</a>
+              <button class="btn btn-danger" onclick="confirmDeletion('subject','<%= subjectObj.subjectid %>', '<%= subjectObj.title %>', deleteSubject)">Delete</button>
+            </div>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+
+    <!-- Pagination -->
+    <nav aria-label="Page navigation example">
+      <ul class="pagination justify-content-center">
+        <% if (currentPage > 1) { %>
+          <li class="page-item">
+            <a class="page-link" href="/?page=<%= currentPage - 1 %>">Previous</a>
+          </li>
+        <% } %>
+        <% for (let i = 1; i <= totalPages; i++) { %>
+          <li class="page-item <%= (i === currentPage ? 'active' : '') %>">
+            <a class="page-link" href="/?page=<%= i %>"><%= i %></a>
+          </li>
+        <% } %>
+        <% if (currentPage < totalPages) { %>
+          <li class="page-item">
+            <a class="page-link" href="/?page=<%= currentPage + 1 %>">Next</a>
+          </li>
+        <% } %>
+      </ul>
+    </nav>
+  </div>
+
+  <!-- Prompts List Modal -->
+  <div class="modal fade" id="promptsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Prompts List</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row" id="prompts-list"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newPromptModal">Add Prompt</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modify Prompt Modal -->
+  <div class="modal fade" id="modifyPromptModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Modify Prompt</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="modify-prompt-form">
+            <div class="mb-3">
+              <label for="prompt-title" class="form-label">Title</label>
+              <textarea class="form-control" id="prompt-title" rows="1" placeholder="Title"></textarea>
+            </div>
+            <div class="mb-3">
+              <label for="prompt-text" class="form-label">Prompt</label>
+              <textarea class="form-control" id="prompt-text" rows="6" placeholder="SUBJECT" style="height: 640px;"></textarea>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-danger" onclick="initiatePromptDeletion()">Delete</button>
+          <button type="button" class="btn btn-primary" onclick="updatePrompt()">Update</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- New Prompt Modal -->
+  <div class="modal fade" id="newPromptModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">New Prompt</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="new-prompt-form">
+            <div class="mb-3">
+              <label for="new-prompt-title" class="form-label">Title</label>
+              <textarea class="form-control" id="new-prompt-title" rows="1" placeholder="Title"></textarea>
+            </div>
+            <div class="mb-3">
+              <label for="new-prompt-text" class="form-label">Prompt</label>
+              <textarea class="form-control" id="new-prompt-text" rows="6" placeholder="SUBJECT" style="height: 640px;"></textarea>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-primary" onclick="saveNewPrompt()">Save Prompt</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Report List Modal -->
+  <div class="modal fade" id="reportModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Report List</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row" id="report-list"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newReportModal">Add Report</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modify Report Modal -->
+  <div class="modal fade" id="modifyReportModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Modify Report</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="modify-report-form">
+            <div class="mb-3">
+              <label for="report-title" class="form-label">Title</label>
+              <textarea class="form-control" id="report-title" rows="1" placeholder="Title"></textarea>
+            </div>
+            <div class="mb-3">
+              <label for="report-text" class="form-label">Report</label>
+              <textarea class="form-control" id="report-text" rows="6" placeholder="Report" style="height: 640px;"></textarea>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-danger" onclick="initiateReportDeletion()">Delete</button>
+          <button type="button" class="btn btn-primary" onclick="updateReport()">Update</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- New Report Modal -->
+  <div class="modal fade" id="newReportModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">New Report</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="new-report-form">
+            <div class="mb-3">
+              <label for="new-report-title" class="form-label">Title</label>
+              <textarea class="form-control" id="new-report-title" rows="1" placeholder="Title"></textarea>
+            </div>
+            <div class="mb-3">
+              <label for="new-report-text" class="form-label">Report</label>
+              <textarea class="form-control" id="new-report-text" rows="6" placeholder="Report" style="height: 640px;"></textarea>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-primary" onclick="saveNewReport()">Save Report</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading Modal -->
+  <div class="modal fade" id="loadingModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-body text-center">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Processing...</span>
+          </div>
+          <p class="mt-3">Processing, please wait...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <% } else { %>
+  <div class="container mt-5">
+    <h1 class="text-center mb-5">Please Log In</h1>
+    <div class="d-flex justify-content-center">
+      <a href="/auth/google" class="btn btn-danger me-3">Login with Google</a>
+      <a href="/auth/github" class="btn btn-dark">Login with GitHub</a>
+    </div>
+  </div>
+  <% } %>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // Document ready function - will execute when DOM is loaded
+    document.addEventListener('DOMContentLoaded', () => {
+      // More aggressive approach to completely remove divs with data-component-name attributes
+      const elementsToRemove = document.querySelectorAll('[data-component-name]');
+      console.log('Found', elementsToRemove.length, 'elements to process');
+      
+      elementsToRemove.forEach(el => {
+        // If it's a div, remove it but keep its contents
+        if (el.getAttribute('data-component-name') === '<div />') {
+          console.log('Removing div:', el);
+          // Move all child nodes to parent before removing the div
+          const parent = el.parentNode;
+          while (el.firstChild) {
+            parent.insertBefore(el.firstChild, el);
+          }
+          parent.removeChild(el);
+        }
+      });
+      
+      // Second pass to clean up any remaining elements
+      document.querySelectorAll('[data-component-name]').forEach(el => {
+        console.log('Processing remaining element:', el);
+        el.removeAttribute('data-component-name');
+      });
+    });
+    
+    // ---------- Utility Functions ----------
+    function showAlert(message) {
+      alert(message);
+    }
+
+    function showModal(modalId) {
+      const modal = new bootstrap.Modal(document.getElementById(modalId));
+      modal.show();
+    }
+
+    function closeModal(modalId) {
+      const modalInstance = bootstrap.Modal.getInstance(document.getElementById(modalId));
+      if (modalInstance) modalInstance.hide();
+    }
+
+    async function sendJsonRequest(url, method='GET', body=null) {
+      const options = { method, headers: { 'Content-Type': 'application/json' } };
+      if (body) options.body = JSON.stringify(body);
+      const response = await fetch(url, options);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Error requesting ${url}:`, errorText);
+      }
+      return response.json();
+    }
+
+    function confirmDeletion(entityType, entityId, entityTitle, deleteFunction) {
+      document.getElementById('deleteMessage').innerText = `Are you sure you want to delete the ${entityType}: "${entityTitle}"?`;
+      const confirmDeleteButton = document.getElementById('confirmDeleteButton');
+      confirmDeleteButton.onclick = () => {
+        deleteFunction(entityId);
+        closeModal('confirmDeleteModal');
+      };
+      showModal('confirmDeleteModal');
+    }
+
+    // ---------- Threat Model Form Submission ----------
+    function handleFormSubmission(event) {
+      event.preventDefault();
+      const form = document.getElementById('threatModelForm');
+
+      // Show loading modal
+      const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'), {
+        backdrop: 'static',
+        keyboard: false
+      });
+      loadingModal.show();
+
+      setTimeout(() => {
+        form.submit();
+      }, 500); 
+    }
+
+    // ---------- Search Autocomplete ----------
+    document.getElementById('search-bar').addEventListener('input', function() {
+      const query = this.value;
+      const list = document.getElementById('autocomplete-list');
+      list.innerHTML = '';
+      if (query.length > 0) {
+        fetch(`/search-titles?query=${encodeURIComponent(query)}`)
+          .then(response => response.json())
+          .then(data => {
+            data.results.forEach(result => {
+              const item = document.createElement('div');
+              item.classList.add('autocomplete-suggestion');
+              item.innerText = result.title;
+              item.addEventListener('click', () => {
+                window.location.href = `/results?subjectid=${encodeURIComponent(result.subjectid)}`;
+              });
+              list.appendChild(item);
+            });
+          });
+      }
+    });
+
+    // ---------- Subjects ----------
+    function deleteSubject(subjectid) {
+      sendJsonRequest('/delete-subjects', 'POST', { subjectsToDelete: subjectid })
+        .then(() => location.reload());
+    }
+
+    // ---------- Prompts ----------
+    function fetchPrompts() {
+      sendJsonRequest('/prompts')
+        .then(data => {
+          const promptsList = document.getElementById('prompts-list');
+          promptsList.innerHTML = '';
+          data.prompts.forEach(prompt => {
+            const card = document.createElement('div');
+            card.className = 'col-md-4 mb-4';
+            card.innerHTML = `
+              <div class="card">
+                <div class="card-body">
+                  <h5 class="card-title">${prompt.title}</h5>
+                  <button class="btn btn-primary" onclick="viewPrompt(${prompt.id})">View</button>
+                  <button class="btn btn-secondary" onclick="selectPrompt(${prompt.id}, '${prompt.title}')">Select</button>
+                </div>
+              </div>`;
+            promptsList.appendChild(card);
+          });
+        });
+    }
+
+    function viewPrompt(id) {
+      sendJsonRequest(`/prompts/${id}`)
+        .then(data => {
+          document.getElementById('prompt-title').value = data.title;
+          document.getElementById('prompt-text').value = data.prompttext;
+          document.getElementById('modifyPromptModal').setAttribute('data-prompt-id', id);
+          showModal('modifyPromptModal');
+        });
+    }
+
+    function selectPrompt(id, title) {
+      document.getElementById('tm-prompt').value = title;
+      document.getElementById('selectedPromptId').value = id;
+      
+      // Use the improved function to properly remove the modal and backdrop
+      closeModalWithBackdrop('promptsModal');
+      
+      // Ensure the body is scrollable
+      document.body.classList.remove('modal-open');
+      document.body.style.overflow = '';
+      document.body.style.paddingRight = '';
+    }
+
+    function updatePrompt() {
+      const id = document.getElementById('modifyPromptModal').getAttribute('data-prompt-id');
+      const title = document.getElementById('prompt-title').value;
+      const prompttext = document.getElementById('prompt-text').value;
+
+      fetch(`/prompts/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, prompttext })
+      })
+      .then(response => {
+        if (response.ok) {
+          showAlert('Prompt updated successfully');
+          fetchPrompts();
+        } else {
+          showAlert('Failed to update prompt');
+        }
+      });
+    }
+
+    function initiatePromptDeletion() {
+      const id = document.getElementById('modifyPromptModal').getAttribute('data-prompt-id');
+      confirmDeletion('prompt', id, document.getElementById('prompt-title').value, deletePrompt);
+    }
+
+    function deletePrompt(id) {
+      fetch(`/prompts/${id}`, { method: 'DELETE' })
+      .then(response => {
+        if (response.ok) {
+          showAlert('Prompt deleted successfully');
+          closeModal('modifyPromptModal');
+          fetchPrompts();
+        } else {
+          showAlert('Failed to delete prompt');
+        }
+      });
+    }
+
+    function saveNewPrompt() {
+      const title = document.getElementById('new-prompt-title').value;
+      const prompttext = document.getElementById('new-prompt-text').value;
+      
+      // Show loading state
+      const saveButton = document.querySelector('#newPromptModal .btn-primary');
+      const originalText = saveButton.innerHTML;
+      saveButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
+      saveButton.disabled = true;
+
+      fetch('/prompts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, prompttext })
+      })
+      .then(response => response.json())
+      .then(data => {
+        // Reset button state
+        saveButton.innerHTML = originalText;
+        saveButton.disabled = false;
+        
+        if (data.success) {
+          // First close the modal
+          const modalElement = document.getElementById('newPromptModal');
+          const modal = bootstrap.Modal.getInstance(modalElement);
+          if (modal) {
+            modal.hide();
+            // The backdrop might stay, so remove it manually
+            document.body.classList.remove('modal-open');
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            backdrops.forEach(backdrop => backdrop.remove());
+          }
+          
+          // Then refresh the prompts list
+          fetchPrompts();
+          showAlert('Prompt added successfully', 'success');
+        } else {
+          showAlert(data.error || 'Failed to add prompt', 'danger');
+        }
+      })
+      .catch(error => {
+        // Reset button state on error
+        saveButton.innerHTML = originalText;
+        saveButton.disabled = false;
+        showAlert('Error: ' + error.message, 'danger');
+      });
+    }
+
+    // ---------- Reports ----------
+    function fetchReports() {
+      sendJsonRequest('/reports')
+        .then(data => {
+          const reportList = document.getElementById('report-list');
+          reportList.innerHTML = '';
+          data.reports.forEach(report => {
+            const card = document.createElement('div');
+            card.className = 'col-md-4 mb-4';
+            card.innerHTML = `
+              <div class="card">
+                <div class="card-body">
+                  <h5 class="card-title">${report.title}</h5>
+                  <button class="btn btn-primary" onclick="viewReport(${report.id})">View</button>
+                  <button class="btn btn-secondary" onclick="selectReport(${report.id}, '${report.title}')">Select</button>
+                </div>
+              </div>`;
+            reportList.appendChild(card);
+          });
+        });
+    }
+
+    function viewReport(id) {
+      sendJsonRequest(`/reports/${id}`)
+        .then(data => {
+          document.getElementById('report-title').value = data.title;
+          document.getElementById('report-text').value = data.reporttext;
+          document.getElementById('modifyReportModal').setAttribute('data-report-id', id);
+          showModal('modifyReportModal');
+        });
+    }
+
+    function selectReport(id, title) {
+      document.getElementById('tm-prompt').value = title;
+      closeModal('reportModal');
+    }
+
+    function updateReport() {
+      const id = document.getElementById('modifyReportModal').getAttribute('data-report-id');
+      const title = document.getElementById('report-title').value;
+      const reporttext = document.getElementById('report-text').value;
+
+      fetch(`/reports/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, reporttext })
+      })
+      .then(response => {
+        if (response.ok) {
+          showAlert('Report updated successfully');
+          fetchReports();
+        } else {
+          showAlert('Failed to update report');
+        }
+      });
+    }
+
+    function initiateReportDeletion() {
+      const id = document.getElementById('modifyReportModal').getAttribute('data-report-id');
+      confirmDeletion('report', id, document.getElementById('report-title').value, deleteReport);
+    }
+
+    function deleteReport(id) {
+      fetch(`/reports/${id}`, { method: 'DELETE' })
+      .then(response => {
+        if (response.ok) {
+          showAlert('Report deleted successfully');
+          closeModal('modifyReportModal');
+          fetchReports();
+        } else {
+          showAlert('Failed to delete report');
+        }
+      });
+    }
+
+    function saveNewReport() {
+      const title = document.getElementById('new-report-title').value;
+      const reporttext = document.getElementById('new-report-text').value;
+
+      fetch('/reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, reporttext })
+      })
+      .then(response => {
+        if (response.ok) {
+          showAlert('Report added successfully');
+          fetchReports();
+          closeModal('newReportModal');
+        } else {
+          showAlert('Failed to add report');
+        }
+      });
+    }
+
+    // ---------- Users ----------
+    function fetchUsers() {
+      sendJsonRequest('/list-users')
+        .then(data => {
+          const userList = document.getElementById('userList');
+          userList.innerHTML = '';
+          data.users.forEach(user => {
+            const listItem = document.createElement('li');
+            listItem.classList.add('list-group-item');
+            listItem.textContent = user.name;
+            listItem.onclick = () => viewUserDetails(user.email);
+            userList.appendChild(listItem);
+          });
+        });
+    }
+
+    function viewUserDetails(email) {
+      sendJsonRequest(`/get-user?email=${encodeURIComponent(email)}`)
+        .then(data => {
+          if (data.success) {
+            const user = data.user;
+            document.getElementById('userName').value = user.name || '';
+            document.getElementById('userEmail').value = user.email || '';
+            document.getElementById('userRegistered').checked = user.registered === 'true';
+            document.getElementById('userApiKey').value = user.apiKey || '';
+            
+            // Update the password reset link with this user's email
+            const resetPasswordLink = document.getElementById('resetPasswordLink');
+            if (resetPasswordLink) {
+              resetPasswordLink.href = `/reset-password?email=${encodeURIComponent(email)}`;
+              console.log('Password reset link updated for:', email);
+            }
+            
+            showModal('userDetailsModal');
+          } else {
+            showAlert('Failed to fetch user details. Please try again.');
+          }
+        });
+    }
+
+    function updateUser() {
+      const email = document.getElementById('userEmail').value;
+      const name = document.getElementById('userName').value;
+      const registered = document.getElementById('userRegistered').checked ? 'true' : 'false';
+      const apiKey = document.getElementById('userApiKey').value;
+
+      fetch(`/update-user?email=${encodeURIComponent(email)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, registered, apiKey })
+      })
+      .then(response => {
+        if (response.ok) {
+          showAlert('User updated successfully.');
+          closeModal('userDetailsModal');
+          fetchUsers();
+        } else {
+          showAlert('Error updating user.');
+        }
+      });
+    }
+
+    function initiateUserDeletion() {
+      const email = document.getElementById('userEmail').value;
+      confirmDeletion('user', email, email, deleteUser);
+    }
+
+    function deleteUser(email) {
+      fetch(`/delete-user?email=${encodeURIComponent(email)}`, { method: 'DELETE' })
+      .then(response => {
+        if (response.ok) {
+          showAlert('User deleted successfully.');
+          closeModal('userDetailsModal');
+          fetchUsers();
+        } else {
+          showAlert('Error deleting user.');
+        }
+      });
+    }
+
+    // ---------- Modal Event Listeners ----------
+    document.getElementById('userManagementModal').addEventListener('show.bs.modal', fetchUsers);
+    
+    // Password toggle visibility functionality
+    function setupPasswordToggle(inputId, toggleButtonId) {
+      const passwordInput = document.getElementById(inputId);
+      const toggleButton = document.getElementById(toggleButtonId);
+      
+      if (passwordInput && toggleButton) {
+        toggleButton.addEventListener('click', function() {
+          const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+          passwordInput.setAttribute('type', type);
+          toggleButton.querySelector('i').classList.toggle('bi-eye');
+          toggleButton.querySelector('i').classList.toggle('bi-eye-slash');
+        });
+      }
+    }
+    
+    // Initialize password reset functionality
+    let passwordResetInitialized = false;
+    
+    function initializePasswordReset() {
+      // Only initialize once
+      if (passwordResetInitialized) {
+        return;
+      }
+      
+      passwordResetInitialized = true;
+      
+      // Open password reset modal button
+      document.getElementById('openPasswordResetBtn').addEventListener('click', function() {
+        const email = document.getElementById('userEmail').value;
+        document.getElementById('resetPasswordUserEmail').textContent = email;
+        document.getElementById('resetPasswordNew').value = '';
+        document.getElementById('resetPasswordConfirm').value = '';
+        document.getElementById('passwordResetResult').classList.add('d-none');
+        
+        const passwordResetModal = new bootstrap.Modal(document.getElementById('passwordResetModal'));
+        passwordResetModal.show();
+      });
+      
+      // Password reset button in the password reset modal
+      document.getElementById('resetPasswordBtn').addEventListener('click', function() {
+        const email = document.getElementById('resetPasswordUserEmail').textContent;
+        const newPassword = document.getElementById('resetPasswordNew').value;
+        const confirmPassword = document.getElementById('resetPasswordConfirm').value;
+        
+        // Basic validation
+        if (!newPassword || newPassword.length < 8) {
+          showPasswordAlert('Password must be at least 8 characters', 'danger');
+          return;
+        }
+        
+        if (newPassword !== confirmPassword) {
+          showPasswordAlert('Passwords do not match', 'danger');
+          return;
+        }
+        
+        // Send reset request
+        fetch('/reset-password', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            email,
+            newPassword,
+            confirmPassword
+          })
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            // Hide the password reset modal
+            const passwordResetModal = bootstrap.Modal.getInstance(document.getElementById('passwordResetModal'));
+            passwordResetModal.hide();
+            
+            // Set up verification modal
+            document.getElementById('verifyPasswordUserEmail').textContent = email;
+            
+            // Store verification data for later use
+            const verifyButton = document.getElementById('verifyPasswordBtn');
+            verifyButton.setAttribute('data-email', email);
+            verifyButton.setAttribute('data-timestamp', data.verification.timestamp);
+            
+            // Show verification modal
+            setTimeout(() => {
+              const verificationModal = new bootstrap.Modal(document.getElementById('verificationModal'));
+              verificationModal.show();
+              
+              // Show success message in verification modal
+              const verificationResult = document.getElementById('verificationResult');
+              verificationResult.classList.remove('d-none');
+              const alertDiv = verificationResult.querySelector('.alert');
+              alertDiv.className = 'alert alert-success';
+              alertDiv.textContent = data.message;
+            }, 500);
+          } else {
+            // Show error in the password reset modal
+            const passwordResetResult = document.getElementById('passwordResetResult');
+            passwordResetResult.classList.remove('d-none');
+            const alertDiv = passwordResetResult.querySelector('.alert');
+            alertDiv.className = 'alert alert-danger';
+            alertDiv.textContent = data.error || 'An error occurred';
+          }
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          // Show error in the password reset modal
+          const passwordResetResult = document.getElementById('passwordResetResult');
+          passwordResetResult.classList.remove('d-none');
+          const alertDiv = passwordResetResult.querySelector('.alert');
+          alertDiv.className = 'alert alert-danger';
+          alertDiv.textContent = 'An error occurred while processing your request';
+        });
+      });
+      
+      // Verification button in the verification modal
+      document.getElementById('verifyPasswordBtn').addEventListener('click', function() {
+        const verifyButton = document.getElementById('verifyPasswordBtn');
+        const email = verifyButton.getAttribute('data-email');
+        const timestamp = verifyButton.getAttribute('data-timestamp');
+        
+        if (!email || !timestamp) {
+          // Show error in the verification modal
+          const resultContainer = document.getElementById('verificationResult');
+          resultContainer.classList.remove('d-none');
+          const resultAlert = resultContainer.querySelector('.alert');
+          resultAlert.className = 'alert alert-danger';
+          resultAlert.textContent = 'Verification data is missing';
+          return;
+        }
+        
+        // Send verification request
+        fetch(`/verify-password-reset?email=${encodeURIComponent(email)}&timestamp=${encodeURIComponent(timestamp)}`)
+          .then(response => response.json())
+          .then(data => {
+            const resultContainer = document.getElementById('verificationResult');
+            resultContainer.classList.remove('d-none');
+            
+            const resultAlert = resultContainer.querySelector('.alert');
+            
+            if (data.success && data.verified) {
+              resultAlert.className = 'alert alert-success';
+              resultAlert.innerHTML = `
+                <div class="d-flex align-items-center mb-2">
+                  <i class="bi bi-check-circle-fill text-success fs-4 me-2"></i>
+                  <strong>Verification Successful</strong>
+                </div>
+                <p class="mb-1">${data.message}</p>
+              `;
+            } else {
+              resultAlert.className = 'alert alert-danger';
+              resultAlert.innerHTML = `
+                <div class="d-flex align-items-center mb-2">
+                  <i class="bi bi-exclamation-triangle-fill text-danger fs-4 me-2"></i>
+                  <strong>Verification Failed</strong>
+                </div>
+                <p class="mb-0">${data.error || 'Verification failed'}</p>
+              `;
+            }
+          })
+          .catch(error => {
+            console.error('Error:', error);
+            showVerificationAlert('An error occurred during verification', 'danger');
+          });
+      });
+    }
+    
+    // Initialize password reset when the modal is shown
+    document.getElementById('userDetailsModal').addEventListener('shown.bs.modal', function() {
+      // Initialize the password reset functionality with a slight delay to ensure DOM is ready
+      setTimeout(initializePasswordReset, 100);
+    }, { once: false });
+    
+    // Helper functions for alerts
+    function showPasswordAlert(message, type = 'info') {
+      const alertContainer = document.getElementById('passwordResetResult');
+      if (!alertContainer) return;
+      
+      alertContainer.classList.remove('d-none');
+      const alertDiv = alertContainer.querySelector('.alert');
+      alertDiv.className = `alert alert-${type}`;
+      alertDiv.innerHTML = message;
+    }
+    
+    function showVerificationAlert(message, type = 'info') {
+      const alertContainer = document.getElementById('verificationResult');
+      if (!alertContainer) return;
+      
+      alertContainer.classList.remove('d-none');
+      const alertDiv = alertContainer.querySelector('.alert');
+      alertDiv.className = `alert alert-${type}`;
+      alertDiv.innerHTML = message;
+    }
+    document.getElementById('promptsModal').addEventListener('show.bs.modal', fetchPrompts);
+    document.getElementById('reportModal').addEventListener('show.bs.modal', fetchReports);
+
+  </script>
+  
+  <!-- Toast Container for Notifications -->
+  <div class="toast-container position-fixed bottom-0 end-0 p-3"></div>
+  
+  <!-- Load Bootstrap JS and custom script -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="/js/app.js"></script>
+  
+  <script>
+    // Initialize page functionality after page load
+    document.addEventListener('DOMContentLoaded', function() {
+      // Load models for each subject
+      loadModelsForSubjects();
+      
+      // Select all checkbox functionality
+      const selectAllCheckbox = document.getElementById('selectAll');
+      if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+          const checkboxes = document.querySelectorAll('.subject-checkbox');
+          checkboxes.forEach(checkbox => {
+            checkbox.checked = selectAllCheckbox.checked;
+          });
+          updateDeleteButtonState();
+        });
+      }
+      
+      // Individual checkbox change events
+      const subjectCheckboxes = document.querySelectorAll('.subject-checkbox');
+      subjectCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateDeleteButtonState);
+      });
+      
+      // Initialize delete button state
+      updateDeleteButtonState();
+    });
+    
+    function updateDeleteButtonState() {
+      const deleteButton = document.getElementById('deleteSelectedBtn');
+      if (!deleteButton) return;
+      
+      const checkedBoxes = document.querySelectorAll('.subject-checkbox:checked');
+      deleteButton.disabled = checkedBoxes.length === 0;
+      
+      if (checkedBoxes.length > 0) {
+        deleteButton.innerHTML = `<i class="bi bi-trash"></i> Delete Selected (${checkedBoxes.length})`;
+        deleteButton.onclick = function() {
+          const selectedIds = Array.from(checkedBoxes).map(cb => cb.value);
+          confirmMultipleDelete(selectedIds);
+        };
+      } else {
+        deleteButton.innerHTML = `<i class="bi bi-trash"></i> Delete Selected`;
+      }
+    }
+    
+    function loadModelsForSubjects() {
+      const subjectRows = document.querySelectorAll('tr[id^="model-"]');
+      subjectRows.forEach(async (element) => {
+        const subjectId = element.id.split('-')[1];
+        try {
+          const response = await fetch(`/api/subject/${subjectId}/model`);
+          const data = await response.json();
+          if (data.success) {
+            element.textContent = data.model || 'Unknown';
+          }
+        } catch (error) {
+          console.error('Error fetching model:', error);
+        }
+      });
+    }
+    
+    function confirmMultipleDelete(subjectIds) {
+      if (!subjectIds || subjectIds.length === 0) return;
+      
+      document.getElementById('deleteMessage').textContent = 
+        `Are you sure you want to delete ${subjectIds.length} selected threat model(s)?`;
+        
+      const confirmButton = document.getElementById('confirmDeleteButton');
+      confirmButton.onclick = function() {
+        deleteSelectedSubjects(subjectIds);
+      };
+      
+      new bootstrap.Modal(document.getElementById('confirmDeleteModal')).show();
+    }
+    
+    function deleteSelectedSubjects(subjectIds) {
+      fetch('/delete-subjects', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          subjectsToDelete: subjectIds
+        })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          showToast('Selected threat models deleted successfully', 'success');
+          setTimeout(() => window.location.reload(), 1000);
+        } else {
+          showToast('Error deleting threat models', 'danger');
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        showToast('An error occurred', 'danger');
+      });
+    }
+  </script>
+
+  <!-- Password Reset Modal -->
+  <div class="modal fade" id="passwordResetModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Reset User Password</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <p>Reset password for: <strong id="resetPasswordUserEmail"></strong></p>
+          </div>
+          <div class="mb-3">
+            <label for="resetPasswordNew" class="form-label">New Password</label>
+            <input type="text" class="form-control" id="resetPasswordNew" autocomplete="off">
+            <div class="form-text">Password must be at least 8 characters.</div>
+          </div>
+          <div class="mb-3">
+            <label for="resetPasswordConfirm" class="form-label">Confirm Password</label>
+            <input type="text" class="form-control" id="resetPasswordConfirm" autocomplete="off">
+          </div>
+          <script>
+            // This script will run when the modal is shown
+            document.getElementById('passwordResetModal').addEventListener('shown.bs.modal', function() {
+              // Clear fields
+              document.getElementById('resetPasswordNew').value = '';
+              document.getElementById('resetPasswordConfirm').value = '';
+              
+              // Focus on first field
+              setTimeout(() => {
+                document.getElementById('resetPasswordNew').focus();
+              }, 500);
+            });
+          </script>
+          <div id="passwordResetResult" class="mt-3 d-none">
+            <div class="alert" role="alert"></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-warning" id="resetPasswordBtn">
+            <i class="bi bi-arrow-repeat me-1"></i>Reset Password
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Verification Modal -->
+  <div class="modal fade" id="verificationModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Verify Password Change</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p>Please verify the password change for: <strong id="verifyPasswordUserEmail"></strong></p>
+          <button type="button" class="btn btn-success" id="verifyPasswordBtn">
+            <i class="bi bi-check-circle me-1"></i>Verify Password Change
+          </button>
+          <div id="verificationResult" class="mt-3 d-none">
+            <div class="alert" role="alert"></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+
+<script>
+  (function() {
+    // Function to remove unwanted elements
+    function removeUnwantedElements() {
+      // Get all elements with data-component-name attribute
+      const unwantedElements = document.querySelectorAll('[data-component-name]');
+      
+      // Remove each unwanted element
+      unwantedElements.forEach(element => {
+        // Preserve form controls that might be needed
+        const tagName = element.tagName.toLowerCase();
+        const isFormControl = ['input', 'button', 'select', 'textarea'].includes(tagName);
+        
+        // Only remove non-form-control elements
+        if (!isFormControl) {
+          if (element.parentNode) {
+            element.parentNode.removeChild(element);
+          }
+        }
+      });
+    }
+    
+    // Run immediately
+    removeUnwantedElements();
+    
+    // Set up a MutationObserver to watch for DOM changes
+    const observer = new MutationObserver(function(mutations) {
+      removeUnwantedElements();
+    });
+    
+    // Start observing the document with the configured parameters
+    observer.observe(document.body, {
+      childList: true,     // Watch for changes in the direct children
+      subtree: true,      // Watch for changes in all descendants
+      attributes: false,  // Don't watch for attribute changes
+      characterData: false // Don't watch for character data changes
+    });
+    
+    // As a backup, also run it periodically
+    setInterval(removeUnwantedElements, 200);
+    
+    // Run again when all content is loaded
+    window.addEventListener('load', removeUnwantedElements);
+    
+    // Force removal when user interacts with the page
+    document.addEventListener('click', function() {
+      setTimeout(removeUnwantedElements, 10);
+      setTimeout(removeUnwantedElements, 100);
+      setTimeout(removeUnwantedElements, 500);
+    });
+  })();
+</script>

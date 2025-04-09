@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register - Threat Model Generator</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body class="fade-in" data-show-modal="<%= typeof showModal !== 'undefined' && showModal ? 'true' : 'false' %>">
+  <div class="container py-5">
+    <div class="row justify-content-center">
+      <div class="col-md-6 col-lg-5">
+        <div class="card">
+          <div class="card-header text-center">
+            <div class="d-flex justify-content-center align-items-center mb-3">
+              <i class="bi bi-shield-lock fs-1 text-primary"></i>
+            </div>
+            <h2>Create an Account</h2>
+            <p class="text-muted">Sign up to use Threat Model Generator</p>
+          </div>
+          <div class="card-body p-4">
+            <form action="/register" method="post" class="needs-validation" novalidate>
+              <div class="mb-3">
+                <label for="name" class="form-label">Full Name</label>
+                <div class="input-group">
+                  <span class="input-group-text"><i class="bi bi-person"></i></span>
+                  <input type="text" class="form-control" id="name" name="name" required placeholder="Enter your name">
+                  <div class="invalid-feedback">Please enter your name.</div>
+                </div>
+              </div>
+              <div class="mb-3">
+                <label for="email" class="form-label">Email Address</label>
+                <div class="input-group">
+                  <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                  <input type="email" class="form-control" id="email" name="email" required placeholder="name@example.com">
+                  <div class="invalid-feedback">Please enter a valid email address.</div>
+                </div>
+              </div>
+              <div class="mb-3">
+                <label for="password" class="form-label">Password</label>
+                <div class="input-group">
+                  <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                  <input type="password" class="form-control" id="password" name="password" required placeholder="Create a password">
+                  <div class="invalid-feedback">Please create a password.</div>
+                </div>
+                <div class="form-text">Password should be at least 8 characters long.</div>
+              </div>
+              <div class="mb-4">
+                <label for="apiKey" class="form-label">ChatGPT API Key (optional)</label>
+                <div class="input-group">
+                  <span class="input-group-text"><i class="bi bi-key"></i></span>
+                  <input type="text" class="form-control" id="apiKey" name="apiKey" placeholder="Your OpenAI API key">
+                </div>
+                <div class="form-text">You can add this later if you don't have it now.</div>
+              </div>
+              <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-primary btn-lg">
+                  <i class="bi bi-person-plus me-2"></i>Create Account
+                </button>
+              </div>
+            </form>
+            <div class="text-center mt-4">
+              <p>Already have an account? <a href="/login" class="text-decoration-none">Sign in here</a></p>
+            </div>
+          </div>
+        </div>
+        <div class="text-center mt-4 text-muted small">
+          <p>&copy; <%= new Date().getFullYear() %> Threat Model Generator. All rights reserved.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal -->
+  <div class="modal fade" id="alreadyRegisteredModal" tabindex="-1" aria-labelledby="alreadyRegisteredModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="alreadyRegisteredModalLabel">
+            <i class="bi bi-exclamation-circle text-primary me-2"></i>Already Registered
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p>This email address is already registered in our system.</p>
+          <p class="mb-0">Would you like to go to the login page instead?</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Stay Here</button>
+          <a href="/login" class="btn btn-primary">Go to Login</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="/js/app.js"></script>
+  <script>
+    // Using a data attribute to pass the showModal value from server to client
+    document.addEventListener('DOMContentLoaded', function() {
+      // Init form validation
+      initFormValidation();
+      
+      // Get the showModal value from a data attribute in the body tag
+      const body = document.querySelector('body');
+      const showModal = body.dataset.showModal === 'true';
+      
+      if (showModal) {
+        var myModal = new bootstrap.Modal(document.getElementById('alreadyRegisteredModal'), {});
+        myModal.show();
+      }
+      
+      // Password strength indicator
+      const passwordInput = document.getElementById('password');
+      if (passwordInput) {
+        passwordInput.addEventListener('input', function() {
+          const value = this.value;
+          let strength = 0;
+          
+          if (value.length >= 8) strength += 1;
+          if (value.match(/[A-Z]/)) strength += 1;
+          if (value.match(/[0-9]/)) strength += 1;
+          if (value.match(/[^A-Za-z0-9]/)) strength += 1;
+          
+          let feedbackText = '';
+          let feedbackClass = '';
+          
+          switch(strength) {
+            case 0:
+            case 1:
+              feedbackText = 'Weak password';
+              feedbackClass = 'text-danger';
+              break;
+            case 2:
+              feedbackText = 'Fair password';
+              feedbackClass = 'text-warning';
+              break;
+            case 3:
+              feedbackText = 'Good password';
+              feedbackClass = 'text-info';
+              break;
+            case 4:
+              feedbackText = 'Strong password';
+              feedbackClass = 'text-success';
+              break;
+          }
+          
+          const feedbackEl = document.querySelector('.form-text');
+          if (feedbackEl && value.length > 0) {
+            feedbackEl.className = 'form-text ' + feedbackClass;
+            feedbackEl.textContent = feedbackText;
+          } else if (feedbackEl) {
+            feedbackEl.className = 'form-text';
+            feedbackEl.textContent = 'Password should be at least 8 characters long.';
+          }
+        });
+      }
+    });
+  </script>
+</body>
+</html>

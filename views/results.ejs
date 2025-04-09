@@ -1,0 +1,2233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Threat Model Details</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+  <link rel="stylesheet" href="/css/main.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    .threat-content {
+      white-space: pre-wrap;
+    }
+    .md-editor .md-input {
+      height: auto !important;
+      max-height: 6000px;
+      overflow-y: auto;
+    }
+    .md-editor .md-preview {
+      display: none !important;
+    }
+    .threat-markdown {
+      height: 400px !important;
+    }
+    
+    /* Results page specific styles */
+    .edit-textarea {
+      border: 1px solid var(--border-color);
+      border-radius: 0.375rem;
+      padding: 0.75rem;
+      transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    }
+    .edit-textarea:focus {
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 0.2rem rgba(var(--primary-rgb), 0.25);
+    }
+    .view-threats-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 10;
+    }
+    .card-action-buttons {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+    }
+  </style>
+</head>
+<body class="fade-in">
+  <!-- Toast container for notifications -->
+  <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1500">
+    <!-- Save Success Toast -->
+    <div id="saveSuccessToast" class="toast align-items-center text-white bg-success" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="d-flex">
+        <div class="toast-body">
+          <i class="bi bi-check-circle me-2"></i>Changes saved successfully!
+        </div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+    </div>
+    
+    <!-- Save Error Toast -->
+    <div id="saveErrorToast" class="toast align-items-center text-white bg-danger" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="d-flex">
+        <div class="toast-body">
+          <i class="bi bi-exclamation-triangle me-2"></i><span id="saveErrorMessage">Error saving changes.</span>
+        </div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+    </div>
+  </div>
+  <% if (user) { %>
+    <!-- Modern Top Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm sticky-top">
+      <div class="container-fluid">
+        <a class="navbar-brand d-flex align-items-center" href="/">
+          <i class="bi bi-shield-lock text-primary me-2 fs-4"></i>
+          <span>Threat Model Generator</span>
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        
+        <div class="collapse navbar-collapse" id="navbarContent">
+          <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+            <li class="nav-item">
+              <a class="nav-link" href="/"><i class="bi bi-house-door me-1"></i>Home</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#summariesModal">
+                <i class="bi bi-list-check me-1"></i>Manage Summaries
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#" onclick="generateSummary('<%= subjectid %>')">
+                <i class="bi bi-plus-circle me-1"></i>New Summary
+              </a>
+            </li>
+            <% if (summary) { %>
+            <li class="nav-item">
+              <a class="nav-link" href="#" onclick="viewSummary('<%= subjectid %>', 'navbar')">
+                <i class="bi bi-file-text me-1"></i>View Summary
+              </a>
+            </li>
+            <% } %>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                <i class="bi bi-tools me-1"></i>Tools
+              </a>
+              <ul class="dropdown-menu">
+
+                <li>
+                  <a class="dropdown-item" href="#" onclick="fetchReports()">
+                    <i class="bi bi-file-earmark-text me-2"></i>Report Format
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                  <a class="dropdown-item" href="#" onclick="showRweModal('Add')">
+                    <i class="bi bi-plus-lg me-2"></i>New RWE
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" href="#" onclick="listRwes()">
+                    <i class="bi bi-pencil-square me-2"></i>Update RWE
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" href="#" onclick="applyRwe()">
+                    <i class="bi bi-check2-square me-2"></i>Apply RWE
+                  </a>
+                </li>
+              </ul>
+            </li>
+          </ul>
+          <div class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+              <i class="bi bi-person-circle me-1"></i><%= user.name || user.email.split('@')[0] %>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li>
+                <a class="dropdown-item" href="/logout">
+                  <i class="bi bi-box-arrow-right me-2"></i>Logout
+                </a>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <div class="container py-4">
+      <div class="row mb-4">
+        <div class="col-12">
+          <div class="d-flex justify-content-between align-items-center">
+            <h1 class="h2">Threat Model Details</h1>
+            <nav aria-label="breadcrumb">
+              <ol class="breadcrumb mb-0">
+                <li class="breadcrumb-item"><a href="/" class="text-decoration-none">Home</a></li>
+                <li class="breadcrumb-item active">Threat Model</li>
+              </ol>
+            </nav>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Edit Threat Model Form -->
+      <div class="card shadow-sm mb-4 border-0">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+          <h5 class="card-title mb-0">
+            <i class="bi bi-pencil-square me-2 text-primary"></i>Edit Threat Model
+          </h5>
+          <div>
+            <button type="button" class="btn btn-sm btn-outline-primary me-2" onclick="showThreatsModal()">
+              <i class="bi bi-shield me-1"></i>View Threats
+            </button>
+            <!-- AI Suggestions button removed but functionality preserved -->
+            <!-- <button type="button" class="btn btn-sm btn-outline-success me-2" onclick="analyzeThreatModel('<%= subjectid %>')">
+              <i class="bi bi-lightbulb me-1"></i>AI Suggestions
+            </button> -->
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="generateMoreThreats('<%= subjectid %>')">
+              <i class="bi bi-lightning-charge me-1"></i>Generate More Threats
+            </button>
+            <!-- Debug Info button removed but functionality preserved -->
+            <!-- <button type="button" class="btn btn-sm btn-outline-danger ms-2" onclick="showDebugModal('<%= subjectid %>')">
+              <i class="bi bi-bug me-1"></i>Debug Info
+            </button> -->
+          </div>
+        </div>
+        <div class="card-body p-4">
+          <form action="/edit" method="post" class="needs-validation" novalidate id="editForm">
+            <input type="hidden" name="subjectid" value="<%= subjectid %>">
+            
+            <div class="row">
+              <div class="col-md-12 mb-3">
+                <label for="title" class="form-label">Title</label>
+                <div class="input-group">
+                  <span class="input-group-text"><i class="bi bi-bookmark"></i></span>
+                  <textarea id="title" name="title" class="form-control" rows="1" required><%= title %></textarea>
+                  <div class="invalid-feedback">Please provide a title.</div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="row">
+              <div class="col-md-12 mb-3">
+                <label for="subject" class="form-label">Subject Description</label>
+                <div class="input-group">
+                  <span class="input-group-text"><i class="bi bi-list-ul"></i></span>
+                  <textarea id="subject" name="subjectText" class="form-control" rows="3" required><%= subjectText %></textarea>
+                  <div class="invalid-feedback">Please provide a subject description.</div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label for="model" class="form-label">Model</label>
+                <div class="input-group">
+                  <span class="input-group-text"><i class="bi bi-cpu"></i></span>
+                  <input type="text" id="model" name="model" class="form-control" value="<%= model %>" readonly>
+                </div>
+                <div class="form-text">The AI model used for this threat model.</div>
+              </div>
+            </div>
+            
+            <div class="mb-4 position-relative">
+              <div class="d-flex justify-content-between align-items-start mb-2">
+                <label for="editedResponse" class="form-label mb-0">Response Content</label>
+                <div style="max-width: 400px;">
+                  <div class="input-group mb-1">
+                    <input type="text" id="threatSearchInput" class="form-control" placeholder="Search for threats..." aria-label="Search threats">
+                    <button class="btn btn-outline-secondary" type="button" id="clearSearchBtn">
+                      <i class="bi bi-x"></i>
+                    </button>
+                    <button class="btn btn-outline-primary" type="button" id="searchPrevBtn">
+                      <i class="bi bi-arrow-up"></i>
+                    </button>
+                    <button class="btn btn-outline-primary" type="button" id="searchNextBtn">
+                      <i class="bi bi-arrow-down"></i>
+                    </button>
+                    <button class="btn btn-outline-secondary" type="button" id="searchOptionsBtn" data-bs-toggle="collapse" data-bs-target="#searchOptionsPanel" aria-expanded="false" aria-controls="searchOptionsPanel">
+                      <i class="bi bi-gear"></i>
+                    </button>
+                  </div>
+                  <div class="collapse" id="searchOptionsPanel">
+                    <div class="card card-body p-2 mb-1" style="font-size: 0.875rem;">
+                      <div class="d-flex flex-column">
+                        <div class="form-check form-check-inline mb-1">
+                          <input class="form-check-input" type="checkbox" id="caseSensitiveCheckbox">
+                          <label class="form-check-label" for="caseSensitiveCheckbox">Case sensitive</label>
+                        </div>
+                        <div class="form-check form-check-inline mb-1">
+                          <input class="form-check-input" type="checkbox" id="wholeWordCheckbox">
+                          <label class="form-check-label" for="wholeWordCheckbox">Match whole words</label>
+                        </div>
+                        <div class="form-check form-check-inline mb-1">
+                          <input class="form-check-input" type="checkbox" id="threatOnlyCheckbox" checked>
+                          <label class="form-check-label" for="threatOnlyCheckbox">Prioritize threats</label>
+                        </div>
+                        <div class="mt-1">
+                          <label for="sensitivityRange" class="form-label d-flex justify-content-between align-items-center">
+                            <span>Match sensitivity</span>
+                            <span id="sensitivityValue" class="badge bg-primary">Medium</span>
+                          </label>
+                          <input type="range" class="form-range" min="1" max="3" step="1" value="2" id="sensitivityRange">
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div id="searchStats" class="mb-2 text-muted" style="font-size: 0.875rem; display: none;">
+                Match <span id="currentMatchIndex">0</span> of <span id="totalMatches">0</span>
+              </div>
+              <textarea name="editedResponse" id="editedResponse" rows="12" 
+                      class="form-control edit-textarea" style="min-height: 600px; overflow-y: auto;"><%= response %></textarea>
+            </div>
+
+            <!-- Height controls with modern styling -->
+            <div class="row mb-4">
+              <div class="col-md-6 offset-md-3">
+                <div class="card bg-light border-0">
+                  <div class="card-body p-3">
+                    <label class="form-label text-center d-block mb-2">Editor Height Control</label>
+                    <div class="d-flex align-items-center gap-2">
+                      <div class="input-group input-group-sm">
+                        <span class="input-group-text"><i class="bi bi-arrows-expand"></i></span>
+                        <input type="number" id="heightInput" class="form-control text-center" value="600" min="400" max="5000">
+                        <span class="input-group-text">px</span>
+                      </div>
+                      <input type="range" id="heightSlider" class="form-range flex-grow-1" min="400" max="5000" value="600">
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+              <button type="button" id="saveChangesBtn" class="btn btn-primary btn-lg px-4">
+                <i class="bi bi-save me-2"></i>Save Changes
+              </button>
+            </div>
+            
+            <!-- Debug Status Display - Hidden in production -->
+            <div id="debugStatusDisplay" class="d-none" style="display: none !important; visibility: hidden;">
+              <h5>Debug Information</h5>
+              <pre id="debugInfo">No debug info yet</pre>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Summaries List Modal -->
+      <div class="modal fade" id="summariesModal" tabindex="-1" aria-labelledby="summariesModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="summariesModalLabel">Summaries List</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <div class="row" id="summaries-list"></div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newSummaryModal">Add Summary</button>
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modify Summary Modal -->
+      <div class="modal fade" id="modifySummaryModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">Modify Summary</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <form id="modify-summary-form">
+                <div class="mb-3">
+                  <label class="form-label">Title</label>
+                  <textarea class="form-control" id="summary-title" rows="1" placeholder="Title" style="overflow-y: auto;"></textarea>
+                </div>
+
+                <!-- Slider/number for "Title" textarea -->
+                <div class="mb-3 d-flex align-items-center">
+                  <label for="heightInput_summaryTitle" class="form-label me-2">Height:</label>
+                  <input type="number" id="heightInput_summaryTitle" class="form-control me-2" style="width: 80px;" value="60">
+                  <input type="range" id="heightSlider_summaryTitle" class="form-range" min="50" max="3000" value="60">
+                  <span id="heightValue_summaryTitle" class="ms-2">60px</span>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">Summary</label>
+                  <textarea class="form-control" id="summary-text" rows="6" placeholder="Summary content" style="overflow-y: auto;"></textarea>
+                </div>
+
+                <!-- Slider/number for "Summary" textarea -->
+                <div class="mb-3 d-flex align-items-center">
+                  <label for="heightInput_summaryText" class="form-label me-2">Height:</label>
+                  <input type="number" id="heightInput_summaryText" class="form-control me-2" style="width: 80px;" value="200">
+                  <input type="range" id="heightSlider_summaryText" class="form-range" min="100" max="3000" value="200">
+                  <span id="heightValue_summaryText" class="ms-2">200px</span>
+                </div>
+              </form>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-danger" onclick="deleteSummary()">Delete</button>
+              <button type="button" class="btn btn-primary" onclick="updateSummary()">Update</button>
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- New Summary Modal -->
+      <div class="modal fade" id="newSummaryModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">New Summary</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <form id="new-summary-form">
+                <div class="mb-3">
+                  <label class="form-label">Title</label>
+                  <textarea class="form-control" id="new-summary-title" rows="1" placeholder="Title" style="overflow-y: auto;"></textarea>
+                </div>
+
+                <!-- Slider/number for New Summary "Title" -->
+                <div class="mb-3 d-flex align-items-center">
+                  <label for="heightInput_newSummaryTitle" class="form-label me-2">Height:</label>
+                  <input type="number" id="heightInput_newSummaryTitle" class="form-control me-2" style="width: 80px;" value="60">
+                  <input type="range" id="heightSlider_newSummaryTitle" class="form-range" min="50" max="3000" value="60">
+                  <span id="heightValue_newSummaryTitle" class="ms-2">60px</span>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">Summary</label>
+                  <textarea class="form-control" id="new-summary-text" rows="6" placeholder="Summary content" style="overflow-y: auto;"></textarea>
+                </div>
+
+                <!-- Slider/number for New Summary "Content" -->
+                <div class="mb-3 d-flex align-items-center">
+                  <label for="heightInput_newSummaryText" class="form-label me-2">Height:</label>
+                  <input type="number" id="heightInput_newSummaryText" class="form-control me-2" style="width: 80px;" value="200">
+                  <input type="range" id="heightSlider_newSummaryText" class="form-range" min="100" max="3000" value="200">
+                  <span id="heightValue_newSummaryText" class="ms-2">200px</span>
+                </div>
+              </form>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-primary" onclick="saveNewSummary()">Save Summary</button>
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Summary Dialog Modal (Bootstrap) -->
+      <div class="modal fade" id="summaryDialogModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">Report</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <textarea id="summaryContent" class="form-control" style="min-height: 300px; overflow-y: auto; resize: vertical;"></textarea>
+              
+              <!-- Slider/number for the "Report" textarea -->
+              <div class="mt-3 d-flex align-items-center">
+                <label for="heightInput_summaryContent" class="form-label me-2">Height:</label>
+                <input type="number" id="heightInput_summaryContent" class="form-control me-2" style="width: 80px;" value="300">
+                <input type="range" id="heightSlider_summaryContent" class="form-range" min="200" max="3000" value="300">
+                <span id="heightValue_summaryContent" class="ms-2">300px</span>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button class="btn btn-secondary" onclick="closeSummaryDialog()">Close</button>
+              <button class="btn btn-primary" onclick="saveSummary('<%= subjectid %>')">Save</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- End new summary dialog modal -->
+
+      <!-- Report List Modal -->
+      <div class="modal fade" id="reportModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">List of Reports</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <div id="report-list" class="row"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modify Report Modal -->
+      <div class="modal fade" id="modifyReportModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">Modify Report</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <div class="mb-3">
+                <label class="form-label">Title</label>
+                <textarea id="report-title" class="form-control" rows="1" style="overflow-y: auto;"></textarea>
+              </div>
+              <!-- Slider/number for the "report-title" textarea -->
+              <div class="mb-3 d-flex align-items-center">
+                <label for="heightInput_reportTitle" class="form-label me-2">Height:</label>
+                <input type="number" id="heightInput_reportTitle" class="form-control me-2" style="width: 80px;" value="60">
+                <input type="range" id="heightSlider_reportTitle" class="form-range" min="50" max="3000" value="60">
+                <span id="heightValue_reportTitle" class="ms-2">60px</span>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label">Report</label>
+                <textarea id="report-text" class="form-control" rows="10" style="min-height: 300px; overflow-y: auto;"></textarea>
+              </div>
+              <!-- Slider/number for the "report-text" textarea -->
+              <div class="mb-3 d-flex align-items-center">
+                <label for="heightInput_reportText" class="form-label me-2">Height:</label>
+                <input type="number" id="heightInput_reportText" class="form-control me-2" style="width: 80px;" value="300">
+                <input type="range" id="heightSlider_reportText" class="form-range" min="200" max="3000" value="300">
+                <span id="heightValue_reportText" class="ms-2">300px</span>
+              </div>
+
+              <button type="button" class="btn btn-primary" onclick="updateReport()">Update</button>
+              <button type="button" class="btn btn-danger" onclick="deleteReport()">Delete</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Loading Modal -->
+      <div class="modal fade" id="loadingModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content">
+            <div class="modal-body text-center">
+              <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Processing...</span>
+              </div>
+              <p class="mt-3">Processing, please wait...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Threats Modal -->
+      <div class="modal fade" id="threatsModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">List of Threats</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <ul id="threatsList" class="list-group"></ul>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-primary" onclick="compareSelectedThreats()">Compare Selected</button>
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Compare Modal -->
+      <div class="modal fade" id="compareModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">Compare Threats</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <div id="compareContent" class="row"></div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Add RWE Modal -->
+      <div class="modal fade" id="addRweModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">Add RWE</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <form id="addRweForm">
+                <div class="mb-3">
+                  <label class="form-label">Threat</label>
+                  <textarea class="form-control" id="addRweThreat" name="threat" required style="overflow-y: auto;"></textarea>
+                </div>
+                <!-- Height controls for "addRweThreat" -->
+                <div class="mb-3 d-flex align-items-center">
+                  <label for="heightInput_addRweThreat" class="form-label me-2">Height:</label>
+                  <input type="number" id="heightInput_addRweThreat" class="form-control me-2" style="width: 80px;" value="80">
+                  <input type="range" id="heightSlider_addRweThreat" class="form-range" min="50" max="3000" value="80">
+                  <span id="heightValue_addRweThreat" class="ms-2">80px</span>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">Description</label>
+                  <textarea class="form-control" id="addRweDescription" name="description" required style="overflow-y: auto;"></textarea>
+                </div>
+                <!-- Height controls for "addRweDescription" -->
+                <div class="mb-3 d-flex align-items-center">
+                  <label for="heightInput_addRweDescription" class="form-label me-2">Height:</label>
+                  <input type="number" id="heightInput_addRweDescription" class="form-control me-2" style="width: 80px;" value="80">
+                  <input type="range" id="heightSlider_addRweDescription" class="form-range" min="50" max="3000" value="80">
+                  <span id="heightValue_addRweDescription" class="ms-2">80px</span>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">Reference</label>
+                  <textarea class="form-control" id="addRweReference" name="reference" required style="overflow-y: auto;"></textarea>
+                </div>
+                <!-- Height controls for "addRweReference" -->
+                <div class="mb-3 d-flex align-items-center">
+                  <label for="heightInput_addRweReference" class="form-label me-2">Height:</label>
+                  <input type="number" id="heightInput_addRweReference" class="form-control me-2" style="width: 80px;" value="80">
+                  <input type="range" id="heightSlider_addRweReference" class="form-range" min="50" max="3000" value="80">
+                  <span id="heightValue_addRweReference" class="ms-2">80px</span>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Save</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- List of RWE Modal -->
+      <div class="modal fade" id="listRweModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">List of RWE</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <div class="mb-4 position-relative">
+                <input type="text" id="rwe-search-bar" class="form-control" placeholder="Search by title...">
+                <div id="rwe-autocomplete-list" class="autocomplete-suggestions"></div>
+              </div>
+              <div id="rweCardContainer" class="row"></div>
+              <nav aria-label="Page navigation">
+                <ul class="pagination justify-content-center" id="paginationControls"></ul>
+              </nav>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modify RWE Modal -->
+      <div class="modal fade" id="modifyRweModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">Modify RWE</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <form id="modifyRweForm">
+                <div class="mb-3">
+                  <label class="form-label">Threat</label>
+                  <textarea class="form-control" id="modifyRweThreat" name="threat" required style="overflow-y: auto;"></textarea>
+                </div>
+                <!-- Height controls for "modifyRweThreat" -->
+                <div class="mb-3 d-flex align-items-center">
+                  <label for="heightInput_modifyRweThreat" class="form-label me-2">Height:</label>
+                  <input type="number" id="heightInput_modifyRweThreat" class="form-control me-2" style="width: 80px;" value="80">
+                  <input type="range" id="heightSlider_modifyRweThreat" class="form-range" min="50" max="3000" value="80">
+                  <span id="heightValue_modifyRweThreat" class="ms-2">80px</span>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">Description</label>
+                  <textarea class="form-control" id="modifyRweDescription" name="description" required style="overflow-y: auto;"></textarea>
+                </div>
+                <!-- Height controls for "modifyRweDescription" -->
+                <div class="mb-3 d-flex align-items-center">
+                  <label for="heightInput_modifyRweDescription" class="form-label me-2">Height:</label>
+                  <input type="number" id="heightInput_modifyRweDescription" class="form-control me-2" style="width: 80px;" value="80">
+                  <input type="range" id="heightSlider_modifyRweDescription" class="form-range" min="50" max="3000" value="80">
+                  <span id="heightValue_modifyRweDescription" class="ms-2">80px</span>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">Reference</label>
+                  <textarea class="form-control" id="modifyRweReference" name="reference" required style="overflow-y: auto;"></textarea>
+                </div>
+                <!-- Height controls for "modifyRweReference" -->
+                <div class="mb-3 d-flex align-items-center">
+                  <label for="heightInput_modifyRweReference" class="form-label me-2">Height:</label>
+                  <input type="number" id="heightInput_modifyRweReference" class="form-control me-2" style="width: 80px;" value="80">
+                  <input type="range" id="heightSlider_modifyRweReference" class="form-range" min="50" max="3000" value="80">
+                  <span id="heightValue_modifyRweReference" class="ms-2">80px</span>
+                </div>
+
+                <button type="button" class="btn btn-danger" onclick="confirmDeleteRwe()">Delete</button>
+                <button type="submit" class="btn btn-primary">Update</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Confirm Delete Threat Modal -->
+      <div class="modal fade" id="confirmDeleteThreatModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">Confirm Delete Threat</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <p>Are you sure you want to delete the following threat?</p>
+              <pre id="threatDetails"></pre>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+              <button type="button" class="btn btn-danger" onclick="confirmDeleteThreat()">Remove</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="findReplaceDialog" class="modal" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">Find and Replace</h5>
+              <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close" onclick="closeFindReplaceDialog()">
+                <span aria-hidden="true">&times;</span>
+              </button>
+            </div>
+            <div class="modal-body">
+              <div class="mb-3">
+                <label for="findText" class="form-label">Find</label>
+                <input type="text" id="findText" class="form-control">
+              </div>
+              <div class="mb-3">
+                <label for="replaceText" class="form-label">Replace with</label>
+                <input type="text" id="replaceText" class="form-control">
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" onclick="closeFindReplaceDialog()">Cancel</button>
+              <button type="button" class="btn btn-primary" onclick="executeFindReplace()">Replace</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  <% } else { %>
+    <div class="container py-5">
+      <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+          <div class="card text-center shadow-sm border-0">
+            <div class="card-header bg-white py-4">
+              <div class="d-flex justify-content-center align-items-center mb-3">
+                <i class="bi bi-shield-lock fs-1 text-primary"></i>
+              </div>
+              <h2>Access Required</h2>
+              <p class="text-muted">Please sign in to view this page</p>
+            </div>
+            <div class="card-body p-5">
+              <div class="d-grid gap-3">
+                <a href="/auth/google" class="btn btn-danger btn-lg">
+                  <i class="bi bi-google me-2"></i>Login with Google
+                </a>
+                <a href="/auth/github" class="btn btn-dark btn-lg">
+                  <i class="bi bi-github me-2"></i>Login with GitHub
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  <% } %>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-markdown/2.10.0/js/bootstrap-markdown.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/14.1.2/marked.min.js"></script>
+  <script src="/js/app.js"></script>
+
+  <script>
+    let threatToDelete = null;
+    let selectedSummaryPromptId = null;
+
+    // ---------- Utility Functions ----------
+    function showAlert(message) {
+      alert(message);
+    }
+
+    function closeModal(modalId) {
+      const modalElement = document.getElementById(modalId);
+      if (modalElement) {
+        const modalInstance = bootstrap.Modal.getOrCreateInstance(modalElement);
+        modalInstance.hide();
+      }
+      document.body.classList.remove('modal-open');
+      document.querySelectorAll('.modal-backdrop').forEach(backdrop => backdrop.remove());
+    }
+
+    function handleModalTransition(fromModal, toModal) {
+      const fromModalInstance = bootstrap.Modal.getInstance(document.getElementById(fromModal));
+      if (fromModalInstance) {
+        fromModalInstance.hide();
+      }
+      document.querySelectorAll('.modal-backdrop').forEach(backdrop => backdrop.remove());
+      const toModalInstance = bootstrap.Modal.getOrCreateInstance(document.getElementById(toModal));
+      toModalInstance.show();
+    }
+
+    function sendJsonRequest(url, method='GET', body=null) {
+      const options = { method, headers: { 'Content-Type': 'application/json' } };
+      if (body) options.body = JSON.stringify(body);
+      return fetch(url, options).then(res => res.json());
+    }
+
+    // Hook up a slider + number input to dynamically set min-height on a textarea
+    function initializeHeightControls(textAreaId, inputId, sliderId, valueId) {
+      const textArea = document.getElementById(textAreaId);
+      const numberInput = document.getElementById(inputId);
+      const slider = document.getElementById(sliderId);
+      const valueSpan = document.getElementById(valueId);
+
+      if (!textArea || !numberInput || !slider || !valueSpan) return;
+
+      // Set initial style
+      textArea.style.minHeight = numberInput.value + 'px';
+      textArea.style.overflowY = 'auto';
+
+      function adjustHeight() {
+        const newHeight = parseInt(this.value, 10);
+        numberInput.value = newHeight;
+        slider.value = newHeight;
+        textArea.style.minHeight = newHeight + "px";
+        textArea.style.overflowY = "auto";
+        valueSpan.textContent = newHeight + "px";
+      }
+
+      numberInput.addEventListener("input", adjustHeight);
+      slider.addEventListener("input", adjustHeight);
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      // Initialize modern UI components
+      initTooltips();
+      initFormValidation();
+      initConfirmActions();
+      
+      // Initialize threat search functionality
+      initThreatSearch();
+      
+      // Initialize the main "Response" controls
+      const editedResponse = document.getElementById('editedResponse');
+      const heightInput = document.getElementById('heightInput');
+      const heightSlider = document.getElementById('heightSlider');
+      const heightValue = document.getElementById('heightValue');
+
+      function adjustMainResponseHeight() {
+        const newHeight = parseInt(this.value, 10);
+        heightInput.value = newHeight;
+        heightSlider.value = newHeight;
+        editedResponse.style.minHeight = `${newHeight}px`;
+        editedResponse.style.overflowY = 'auto';
+        heightValue.textContent = `${newHeight}px`;
+      }
+
+      if (editedResponse && heightInput && heightSlider && heightValue) {
+        editedResponse.style.minHeight = '840px';
+        editedResponse.style.overflowY = 'auto';
+
+        heightInput.addEventListener('input', adjustMainResponseHeight);
+        heightSlider.addEventListener('input', adjustMainResponseHeight);
+      }
+
+      // Initialize each modal's textareas that have sliders
+      // Modify Summary Modal
+      initializeHeightControls("summary-title", "heightInput_summaryTitle", "heightSlider_summaryTitle", "heightValue_summaryTitle");
+      initializeHeightControls("summary-text", "heightInput_summaryText", "heightSlider_summaryText", "heightValue_summaryText");
+
+      // New Summary Modal
+      initializeHeightControls("new-summary-title", "heightInput_newSummaryTitle", "heightSlider_newSummaryTitle", "heightValue_newSummaryTitle");
+      initializeHeightControls("new-summary-text", "heightInput_newSummaryText", "heightSlider_newSummaryText", "heightValue_newSummaryText");
+
+      // Summary Dialog Modal
+      initializeHeightControls("summaryContent", "heightInput_summaryContent", "heightSlider_summaryContent", "heightValue_summaryContent");
+
+      // Modify Report Modal
+      initializeHeightControls("report-title", "heightInput_reportTitle", "heightSlider_reportTitle", "heightValue_reportTitle");
+      initializeHeightControls("report-text", "heightInput_reportText", "heightSlider_reportText", "heightValue_reportText");
+
+      // Add RWE Modal
+      initializeHeightControls("addRweThreat", "heightInput_addRweThreat", "heightSlider_addRweThreat", "heightValue_addRweThreat");
+      initializeHeightControls("addRweDescription", "heightInput_addRweDescription", "heightSlider_addRweDescription", "heightValue_addRweDescription");
+      initializeHeightControls("addRweReference", "heightInput_addRweReference", "heightSlider_addRweReference", "heightValue_addRweReference");
+
+      // Modify RWE Modal
+      initializeHeightControls("modifyRweThreat", "heightInput_modifyRweThreat", "heightSlider_modifyRweThreat", "heightValue_modifyRweThreat");
+      initializeHeightControls("modifyRweDescription", "heightInput_modifyRweDescription", "heightSlider_modifyRweDescription", "heightValue_modifyRweDescription");
+      initializeHeightControls("modifyRweReference", "heightInput_modifyRweReference", "heightSlider_modifyRweReference", "heightValue_modifyRweReference");
+
+      // Initialize the markdown editor on the main "editedResponse"
+      $('#editedResponse').markdown({
+        iconlibrary: 'fa',
+        additionalButtons: [[{
+          name: "groupCustom",
+          data: [{
+            name: "cmdReformat",
+            title: "Reformat",
+            icon: "fa fa-refresh",
+            callback: reformatResponse
+          },{
+            name: "cmdFindReplace",
+            title: "Find and Replace",
+            icon: "fa fa-search",
+            callback: findAndReplace
+          },{
+            name: "cmdCopy",
+            title: "Copy TM",
+            icon: "fa fa-copy",
+            callback: () => copyToClipboard('editedResponse')
+          }]
+        }]],
+        autofocus: false,
+        savable: false,
+        hiddenButtons: ['cmdPreview'],
+        onPreview: () => false
+      });
+
+      document.querySelectorAll('.btn[data-handler="bootstrap-markdown-cmdPreview"]').forEach(button => {
+        button.style.display = 'none';
+      });
+    });
+
+    $(document).ready(function() {
+      $('#summariesModal').on('show.bs.modal', function () {
+        fetchSummaries();
+      });
+    });
+
+    function copyToClipboard(elementId) {
+      const textarea = document.getElementById(elementId);
+      textarea.select();
+      document.execCommand('copy');
+      showAlert('Copied to clipboard!');
+    }
+
+    // ---------- Summaries Handling ----------
+    function fetchSummaries() {
+      sendJsonRequest('/summaries')
+      .then(data => {
+        if (data.summaries) {
+          const summariesList = document.getElementById('summaries-list');
+          summariesList.innerHTML = '';
+          data.summaries.forEach(summary => {
+            const card = document.createElement('div');
+            card.className = 'col-md-4 mb-4';
+            card.innerHTML = `
+              <div class="card">
+                <div class="card-body">
+                  <h5 class="card-title">${summary.title}</h5>
+                  <button class="btn btn-primary" onclick="viewSummary(${summary.id}, 'list')">View</button>
+                  <button class="btn btn-secondary" onclick="selectSummary(${summary.id}, '${summary.title}')">Select</button>
+                </div>
+              </div>`;
+            summariesList.appendChild(card);
+          });
+        } else {
+          throw new Error("No summaries found in response.");
+        }
+      })
+      .catch(error => {
+        console.error('Error fetching summaries:', error);
+        showAlert('Failed to load summaries. Please try again later.');
+      });
+    }
+
+    function viewSummary(id, context) {
+      const url = context === 'navbar'
+        ? `/get-summary?subjectid=${encodeURIComponent(id)}`
+        : `/summaries/${id}`;
+
+      fetch(url)
+        .then(response => response.json())
+        .then(data => {
+          if (context === 'navbar') {
+            if (data.success) {
+              showSummaryDialog(data.summary);
+            } else {
+              showAlert(`Error retrieving summary data for ID: ${id}`);
+            }
+          } else if (context === 'list') {
+            if (data.title !== undefined && data.summaryText !== undefined) {
+              document.getElementById('summary-title').value = data.title;
+              document.getElementById('summary-text').value = data.summaryText;
+              document.getElementById('modifySummaryModal').setAttribute('data-summary-id', id);
+              const modifySummaryModal = new bootstrap.Modal(document.getElementById('modifySummaryModal'));
+              modifySummaryModal.show();
+            } else {
+              console.error('Invalid response structure:', data);
+              showAlert(`Error retrieving summary data for ID: ${id}`);
+            }
+          }
+        })
+        .catch(error => {
+          console.error('Fetch error:', error);
+          showAlert('An error occurred while retrieving the summary.');
+        });
+    }
+
+    function selectSummary(id, title) {
+      selectedSummaryPromptId = id;
+      document.getElementById('title').value = title;
+      closeModal('summariesModal');
+    }
+
+    function updateSummary() {
+      const id = document.getElementById('modifySummaryModal').getAttribute('data-summary-id');
+      const title = document.getElementById('summary-title').value.trim();
+      const summaryText = document.getElementById('summary-text').value.trim();
+
+      if (!title || !summaryText) {
+        showAlert('Both title and summary text are required.');
+        return;
+      }
+
+      sendJsonRequest(`/summaries/${id}`, 'PUT', { title, summaryText })
+      .then(data => {
+        if (data.success) {
+          showAlert('Summary updated successfully');
+          closeModal('modifySummaryModal');
+          fetchSummaries();
+        } else {
+          showAlert('Failed to update summary');
+        }
+      })
+      .catch(error => {
+        console.error('Error updating summary:', error);
+        showAlert(`Error updating summary for ID: ${id}`);
+      });
+    }
+
+    function deleteSummary() {
+      const id = document.getElementById('modifySummaryModal').getAttribute('data-summary-id');
+      if (confirm('Are you sure you want to delete this summary?')) {
+        sendJsonRequest(`/summaries/${id}`, 'DELETE')
+        .then(data => {
+          if (data.success) {
+            showAlert('Summary deleted successfully');
+            closeModal('modifySummaryModal');
+            fetchSummaries();
+          } else {
+            showAlert('Failed to delete summary');
+          }
+        })
+        .catch(error => {
+          console.error('Error deleting summary:', error);
+          showAlert(`Error deleting summary for ID: ${id}`);
+        });
+      }
+    }
+
+    function saveNewSummary() {
+      const title = document.getElementById('new-summary-title').value.trim();
+      const summaryText = document.getElementById('new-summary-text').value.trim();
+
+      if (!title || !summaryText) {
+        showAlert('Both title and summary text are required.');
+        return;
+      }
+
+      sendJsonRequest('/summaries', 'POST', { title, summaryText })
+      .then(data => {
+        if (data.success) {
+          showAlert('Summary added successfully');
+          fetchSummaries();
+          closeModal('newSummaryModal');
+          document.getElementById('new-summary-title').value = '';
+          document.getElementById('new-summary-text').value = '';
+        } else {
+          showAlert('Failed to add summary');
+        }
+      })
+      .catch(error => {
+        console.error('Error adding new summary:', error);
+        showAlert('An error occurred while adding the summary.');
+      });
+    }
+
+    // Replaces old summaryDialog with a Bootstrap modal
+    function showSummaryDialog(content = '') {
+      const textarea = document.getElementById('summaryContent');
+      textarea.value = content;
+
+      const summaryDialogModal = new bootstrap.Modal(document.getElementById('summaryDialogModal'));
+      summaryDialogModal.show();
+    }
+
+    function closeSummaryDialog() {
+      const summaryDialogModal = bootstrap.Modal.getInstance(document.getElementById('summaryDialogModal'));
+      if (summaryDialogModal) {
+        summaryDialogModal.hide();
+      }
+    }
+
+    function saveSummary(subjectid) {
+      const textarea = document.getElementById('summaryContent');
+      const summary = textarea.value;
+
+      sendJsonRequest('/save-modified-summary', 'POST', { subjectid, summary })
+      .then(data => {
+        if (data.success) {
+          closeSummaryDialog();
+          showAlert('Summary saved successfully!');
+        } else {
+          showAlert('Error saving summary');
+        }
+      });
+    }
+
+    function generateSummary(subjectid) {
+      const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'), {
+        backdrop: 'static',
+        keyboard: false
+      });
+      loadingModal.show();
+
+      sendJsonRequest('/generate-summary', 'POST', { subjectid, selectedSummaryPromptId })
+      .then(data => {
+        loadingModal.hide();
+        if (data.success) {
+          showSummaryDialog(data.summary);
+        } else {
+          showAlert('Error generating summary');
+        }
+      });
+    }
+
+    function showLoadingModal() {
+      const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'), {
+        backdrop: 'static',
+        keyboard: false
+      });
+      loadingModal.show();
+    }
+
+    // ---------- Response Reformatting and Find & Replace ----------
+    async function reformatResponse() {
+      try {
+        const replacements = await sendJsonRequest('/results-format');
+        const responseTextarea = document.getElementById('editedResponse');
+        let responseContent = responseTextarea.value;
+
+        // Example strip out asterisks
+        responseContent = responseContent.replace(/\*/g, '');
+
+        replacements.forEach(({ pattern, replacement }) => {
+          const regex = new RegExp(pattern, 'gmi');
+          responseContent = responseContent.replace(regex, replacement);
+        });
+
+        // Example fix for line breaks + colons
+        responseContent = responseContent.replace(/(\n\n)([A-Za-z].*?):/g, '$1\n$2:');
+        responseTextarea.value = responseContent;
+      } catch (error) {
+        console.error('Error fetching format:', error);
+      }
+    }
+
+    function findAndReplace() {
+      document.getElementById('findReplaceDialog').style.display = 'block';
+    }
+
+    function closeFindReplaceDialog() {
+      document.getElementById('findReplaceDialog').style.display = 'none';
+    }
+
+    function executeFindReplace() {
+      const findText = document.getElementById('findText').value;
+      const replaceText = document.getElementById('replaceText').value;
+
+      if (findText !== '') {
+        const responseTextarea = document.getElementById('editedResponse');
+        let responseContent = responseTextarea.value;
+        const regex = new RegExp(findText, 'g');
+        responseContent = responseContent.replace(regex, replaceText);
+        responseTextarea.value = responseContent;
+      }
+      closeFindReplaceDialog();
+    }
+
+    // ---------- Threats Handling ----------
+    function showThreatsModal() {
+      const responseTextarea = document.getElementById('editedResponse');
+      const responseContent = responseTextarea.value;
+
+      const threatsList = document.getElementById('threatsList');
+      threatsList.innerHTML = '';
+
+      const threatPattern = /## (.*?)\n/g;
+      let match;
+      while ((match = threatPattern.exec(responseContent)) !== null) {
+        const threatItem = document.createElement('li');
+        threatItem.className = 'list-group-item';
+        threatItem.innerHTML = `
+          <input type="checkbox" class="form-check-input me-1" value="${match.index}-${match[1]}">
+          ${match[1]}
+          <button type="button" class="btn btn-danger btn-sm float-end" onclick="showConfirmDeleteModal(${match.index}, '${match[1]}')">
+            Delete
+          </button>
+        `;
+        threatsList.appendChild(threatItem);
+      }
+
+      const threatsModal = new bootstrap.Modal(document.getElementById('threatsModal'));
+      threatsModal.show();
+    }
+
+    function showConfirmDeleteModal(position, title) {
+      const responseTextarea = document.getElementById('editedResponse');
+      const responseContent = responseTextarea.value;
+      const threatPattern = new RegExp(`## ${title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\n([\\s\\S]*?)(?=\\n## |$)`);
+      const threatMatch = responseContent.substring(position).match(threatPattern);
+
+      threatToDelete = { position, title, details: threatMatch ? threatMatch[0] : '' };
+      document.getElementById('threatDetails').textContent = threatToDelete.details;
+      const confirmDeleteThreatModal = new bootstrap.Modal(document.getElementById('confirmDeleteThreatModal'));
+      confirmDeleteThreatModal.show();
+    }
+
+    function confirmDeleteThreat() {
+      if (threatToDelete) {
+        const responseTextarea = document.getElementById('editedResponse');
+        let responseContent = responseTextarea.value;
+        responseContent = responseContent.replace(threatToDelete.details, '');
+        responseTextarea.value = responseContent;
+
+        saveContent();
+        closeModal('confirmDeleteThreatModal');
+        threatToDelete = null;
+      }
+    }
+
+    function saveContent() {
+      const subjectid = document.querySelector('input[name="subjectid"]').value;
+      const editedResponse = document.getElementById('editedResponse').value;
+      const subjectText = document.getElementById('subject').value;
+      const title = document.getElementById('title').value;
+
+      sendJsonRequest('/edit', 'POST', { subjectid, subjectText, editedResponse, title })
+      .then(data => {
+        if (data.success) {
+          showAlert('Content saved successfully!');
+        } else {
+          showAlert('Error saving content');
+        }
+      });
+    }
+
+    function compareSelectedThreats() {
+      const selectedThreats = Array.from(document.querySelectorAll('#threatsList input:checked'))
+        .map(input => input.value.split('-').map((item, index) => index === 0 ? parseInt(item, 10) : item));
+
+      if (selectedThreats.length !== 2) {
+        showAlert('Please select exactly two threats to compare.');
+        return;
+      }
+
+      const responseTextarea = document.getElementById('editedResponse');
+      const responseContent = responseTextarea.value;
+      const compareContent = document.getElementById('compareContent');
+      compareContent.innerHTML = '';
+
+      selectedThreats.forEach(threat => {
+        const [position, title] = threat;
+        const threatPattern = new RegExp(`## ${title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\n([\\s\\S]*?)(?=\\n## |$)`);
+        const threatMatch = responseContent.substring(position).match(threatPattern);
+
+        if (threatMatch) {
+          const threatDetails = document.createElement('div');
+          threatDetails.className = 'col-md-6';
+          threatDetails.innerHTML = `
+            <h5>${title}</h5>
+            <textarea class="form-control threat-content threat-markdown" style="height: 400px; overflow-y:auto;">${threatMatch[1]}</textarea>
+          `;
+          compareContent.appendChild(threatDetails);
+        }
+      });
+
+      const compareModal = new bootstrap.Modal(document.getElementById('compareModal'));
+      compareModal.show();
+      closeModal('threatsModal');
+    }
+
+    // ---------- RWE Handling ----------
+    function showRweModal(action) {
+      if (action === 'Add') {
+        const addRweModal = new bootstrap.Modal(document.getElementById('addRweModal'));
+        addRweModal.show();
+      }
+    }
+
+    function debounceThrottle(func, wait, throttleLimit) {
+      let timeout, lastCall = 0;
+      return function(...args) {
+        const context = this;
+        const now = new Date().getTime();
+        if (now - lastCall >= throttleLimit) {
+          clearTimeout(timeout);
+          func.apply(context, args);
+          lastCall = now;
+        } else {
+          clearTimeout(timeout);
+          timeout = setTimeout(() => {
+            func.apply(context, args);
+            lastCall = now;
+          }, wait);
+        }
+      };
+    }
+
+    document.getElementById('rwe-search-bar').addEventListener('input', debounceThrottle(function() {
+      const query = this.value;
+      listRwes(1, query);
+    }, 10000, 10000));
+
+    function listRwes(page = 1, query = '') {
+      const searchUrl = query.length > 0 
+        ? `/search-rwes?query=${encodeURIComponent(query)}&page=${page}` 
+        : `/list-rwes-paginated?page=${page}`;
+
+      fetch(searchUrl)
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            const rweCardContainer = document.getElementById('rweCardContainer');
+            rweCardContainer.innerHTML = '';
+            data.rwes.forEach(rwe => {
+              const rweCard = document.createElement('div');
+              rweCard.className = 'col-md-4';
+              rweCard.innerHTML = `
+                <div class="card mb-4">
+                  <div class="card-body">
+                    <h5 class="card-title">${rwe.threat}</h5>
+                    <p class="card-text">${rwe.description.substring(0, 100)}...</p>
+                    <button type="button" class="btn btn-primary" onclick="editRwe(${rwe.rweid})">View</button>
+                    <button type="button" class="btn btn-danger" onclick="confirmDeleteRwe(${rwe.rweid})">Delete</button>
+                  </div>
+                </div>`;
+              rweCardContainer.appendChild(rweCard);
+            });
+
+            const paginationControls = document.getElementById('paginationControls');
+            paginationControls.innerHTML = '';
+
+            for (let i = 1; i <= data.totalPages; i++) {
+              const pageItem = document.createElement('li');
+              pageItem.className = `page-item ${data.currentPage === i ? 'active' : ''}`;
+              pageItem.innerHTML = `<button class="page-link" onclick="listRwes(${i}, '${query}')">${i}</button>`;
+              paginationControls.appendChild(pageItem);
+            }
+
+            const listRweModal = new bootstrap.Modal(document.getElementById('listRweModal'));
+            listRweModal.show();
+          } else {
+            showAlert('Error listing RWEs.');
+          }
+        });
+    }
+
+    function editRwe(rweid) {
+      fetch(`/get-rwe/${rweid}`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            $('#modifyRweForm').data('rweid', rweid);
+            $('#modifyRweThreat').val(data.rwe.threat);
+            $('#modifyRweDescription').val(data.rwe.description);
+            $('#modifyRweReference').val(data.rwe.reference);
+            handleModalTransition('listRweModal', 'modifyRweModal');
+          } else {
+            showAlert('Error getting RWE.');
+          }
+        });
+    }
+
+    function confirmDeleteRwe(rweid) {
+      // If called with an rweid from the card's "Delete" button:
+      if (rweid) {
+        // Straight delete from the listing UI
+        deleteItem(`/delete-rwe/${rweid}`, 'RWE deleted successfully!', 'Error deleting RWE.', () => {
+          closeModal('listRweModal');
+          listRwes(); // Reload list
+        });
+      } else {
+        // If called from inside the Modify RWE modal:
+        const localId = $('#modifyRweForm').data('rweid');
+        deleteItem(`/delete-rwe/${localId}`, 'RWE deleted successfully!', 'Error deleting RWE.', () => {
+          closeModal('modifyRweModal');
+          listRwes();
+        });
+      }
+    }
+
+    function deleteItem(endpoint, successMessage, errorMessage, afterSuccess) {
+      sendJsonRequest(endpoint, 'DELETE')
+        .then(data => {
+          if (data.success) {
+            showAlert(successMessage);
+            if (afterSuccess) afterSuccess();
+          } else {
+            showAlert(errorMessage);
+          }
+        })
+        .catch(error => {
+          console.error(errorMessage, error);
+          showAlert(errorMessage);
+        });
+    }
+
+    function applyRwe() {
+      const responseTextarea = document.getElementById('editedResponse');
+      let responseContent = responseTextarea.value;
+
+      sendJsonRequest('/list-rwes')
+        .then(data => {
+          if (data.success) {
+            data.rwes.forEach(rwe => {
+              const threatPattern = new RegExp(
+                `(## Threat: ${rwe.threat.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} ##)([\\s\\S]*?)(## |$)`,
+                'g'
+              );
+              responseContent = responseContent.replace(threatPattern, (match, p1, p2, p3) => {
+                const updatedSection = p2.replace(
+                  /(\*\*Real-World Example:\*\*[\s\S]*?)(?=\*\*Impact if Exploited:\*\*|$)/,
+                  `**Real-World Example:** ${rwe.description} Reference: ${rwe.reference}\n\n`
+                );
+                return `${p1}${updatedSection}${p3}`;
+              });
+            });
+
+            responseTextarea.value = responseContent;
+          } else {
+            showAlert('Error applying RWEs.');
+          }
+        })
+        .catch(error => {
+          console.error('Error fetching RWEs:', error);
+          showAlert('Error applying RWEs.');
+        });
+    }
+
+    // ---------- Reports Handling ----------
+    function fetchReports() {
+      sendJsonRequest('/list-reports')
+        .then(data => {
+          if (data.success) {
+            const reportList = document.getElementById('report-list');
+            reportList.innerHTML = '';
+            data.reports.forEach(report => {
+              const reportCard = document.createElement('div');
+              reportCard.className = 'col-md-4';
+              reportCard.innerHTML = `
+                <div class="card mb-4">
+                  <div class="card-body">
+                    <h5 class="card-title">${report.reporttitle}</h5>
+                    <button type="button" class="btn btn-primary" onclick="viewReport('${report.reportsid}')">View</button>
+                    <button type="button" class="btn btn-secondary" onclick="selectReport('${report.reportsid}')">Select</button>
+                  </div>
+                </div>`;
+              reportList.appendChild(reportCard);
+            });
+
+            const reportModal = new bootstrap.Modal(document.getElementById('reportModal'));
+            reportModal.show();
+          } else {
+            showAlert('Error listing reports.');
+          }
+        })
+        .catch(error => {
+          console.error('Error fetching reports:', error);
+          showAlert('Error fetching reports.');
+        });
+    }
+
+    function viewReport(reportsid) {
+      sendJsonRequest(`/get-report/${reportsid}`)
+        .then(data => {
+          if (data.success) {
+            document.getElementById('report-title').value = data.report.reporttitle;
+            document.getElementById('report-text').value = data.report.reporttext;
+            document.getElementById('modifyReportModal').setAttribute('data-reportsid', reportsid);
+            const modifyReportModal = new bootstrap.Modal(document.getElementById('modifyReportModal'));
+            modifyReportModal.show();
+          } else {
+            showAlert('Error retrieving report.');
+          }
+        })
+        .catch(error => {
+          console.error('Error viewing report:', error);
+          showAlert('Error viewing report.');
+        });
+    }
+
+    function updateReport() {
+      const reportsid = document.getElementById('modifyReportModal').getAttribute('data-reportsid');
+      const reporttitle = document.getElementById('report-title').value;
+      const reporttext = document.getElementById('report-text').value;
+
+      $.post(`/update-report/${reportsid}`, { reporttitle, reporttext }, function(data) {
+        if (data.success) {
+          showAlert('Report updated successfully!');
+          closeModal('modifyReportModal');
+        } else {
+          showAlert('Error updating report.');
+        }
+      }).fail(error => {
+        console.error('Error updating report:', error);
+        showAlert('Error updating report.');
+      });
+    }
+
+    function deleteReport() {
+      const reportsid = document.getElementById('modifyReportModal').getAttribute('data-reportsid');
+      deleteItem(`/delete-report/${reportsid}`, 'Report deleted successfully!', 'Error deleting report.', () => {
+        closeModal('modifyReportModal');
+        fetchReports();
+      });
+    }
+
+    function selectReport(reportsid) {
+      sendJsonRequest(`/get-report/${reportsid}`)
+        .then(data => {
+          if (data.success) {
+            document.getElementById('title').value = `${data.report.reportsid}: ${data.report.reporttitle}`;
+            closeModal('reportModal');
+          } else {
+            showAlert('Error retrieving report.');
+          }
+        })
+        .catch(error => {
+          console.error('Error selecting report:', error);
+          showAlert('Error selecting report.');
+        });
+    }
+    
+    // Direct save implementation using the working approach
+    document.addEventListener('DOMContentLoaded', function() {
+      const saveChangesBtn = document.getElementById('saveChangesBtn');
+      const editTextarea = document.getElementById('editedResponse');
+      const titleField = document.getElementById('title');
+      const subjectField = document.getElementById('subject');
+      const debugStatusDisplay = document.getElementById('debugStatusDisplay');
+      const debugInfo = document.getElementById('debugInfo');
+      
+      if (saveChangesBtn) {
+        saveChangesBtn.addEventListener('click', function() {
+          // Show a loading indicator or disable the save button
+          saveChangesBtn.disabled = true;
+          saveChangesBtn.innerHTML = '<i class="bi bi-hourglass me-2"></i>Saving...';
+          
+          // Get the form data
+          const subjectid = document.querySelector('input[name="subjectid"]').value;
+          const editedResponse = document.getElementById('editedResponse').value;
+          const title = document.getElementById('title').value;
+          const subjectText = document.getElementById('subject').value;
+          
+          // Log debug info to console only
+          console.log('Sending data to server...', {
+            subjectId: subjectid,
+            responseLength: editedResponse.length,
+            titleLength: title.length,
+            subjectTextLength: subjectText.length
+          });
+          
+          // Call the save endpoint that works reliably
+          fetch('/save-changes', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              subjectid,
+              title,
+              subjectText,
+              editedResponse,
+              timestamp: Date.now()
+            })
+          })
+          .then(response => response.json())
+          .then(data => {
+            // Log debug info to console only
+            console.log('Server Response:', data);
+            
+            if (data.success) {
+              console.log('SAVE SUCCESSFUL!');
+            } else {
+              console.log('SAVE FAILED:', data.error || 'Unknown error');
+            }
+            
+            if (data.success) {
+              // Show success toast
+              const toast = new bootstrap.Toast(document.getElementById('saveSuccessToast'));
+              toast.show();
+              
+              // Reset button state
+              saveChangesBtn.disabled = false;
+              saveChangesBtn.innerHTML = '<i class="bi bi-save me-2"></i>Save Changes';
+              
+              // Redirect after a short delay
+              setTimeout(() => {
+                window.location.href = `/results?subjectid=${encodeURIComponent(subjectid)}&t=${Date.now()}`;
+              }, 1500);
+            } else {
+              // Show error toast
+              const errorToast = document.getElementById('saveErrorToast');
+              const errorMessage = document.getElementById('saveErrorMessage');
+              
+              if (errorMessage) {
+                errorMessage.textContent = data.error || 'Unknown error during save';
+              }
+              
+              if (errorToast) {
+                const toast = new bootstrap.Toast(errorToast);
+                toast.show();
+              }
+              
+              // Reset button
+              saveChangesBtn.disabled = false;
+              saveChangesBtn.innerHTML = '<i class="bi bi-save me-2"></i>Save Changes';
+            }
+          })
+          .catch(error => {
+            console.error('Error saving changes:', error);
+            
+            // Log error to console only
+            console.error('Error details:', error.message);
+            
+            // Show error message in toast
+            const errorToast = document.getElementById('saveErrorToast');
+            const errorMessage = document.getElementById('saveErrorMessage');
+            
+            if (errorMessage) {
+              errorMessage.textContent = 'Error saving changes: ' + error.message;
+            }
+            
+            if (errorToast) {
+              const toast = new bootstrap.Toast(errorToast);
+              toast.show();
+            }
+            
+            // Reset button state
+            saveChangesBtn.disabled = false;
+            saveChangesBtn.innerHTML = '<i class="bi bi-save me-2"></i>Save Changes';
+          });
+        });
+      }
+    });
+
+    // Debug save function to test Redis directly
+    document.addEventListener('DOMContentLoaded', function() {
+      const debugSaveBtn = document.getElementById('debugSaveBtn');
+      const debugStatusDisplay = document.getElementById('debugStatusDisplay');
+      const debugInfo = document.getElementById('debugInfo');
+      
+      if (debugSaveBtn) {
+        // Make sure the debug display is visible
+        debugStatusDisplay.style.display = 'block';
+        debugInfo.textContent = 'Click the Debug Save button to test saving changes. This will use a direct Redis implementation to troubleshoot the issue.';
+        
+        debugSaveBtn.addEventListener('click', function() {
+          const subjectid = document.querySelector('input[name="subjectid"]').value;
+          const editedResponse = document.getElementById('editedResponse').value;
+          const title = document.getElementById('title').value;
+          const subjectText = document.getElementById('subject').value;
+          
+          // Show debug display
+          const debugDisplay = document.getElementById('debugStatusDisplay');
+          const debugInfo = document.getElementById('debugInfo');
+          debugDisplay.style.display = 'block';
+          debugInfo.textContent = 'Sending data to server...\n' + 
+                                 `Subject ID: ${subjectid}\n` +
+                                 `Response length: ${editedResponse.length}\n` +
+                                 `Title length: ${title.length}\n` +
+                                 `Subject text length: ${subjectText.length}`;
+          
+          // Call debug save endpoint
+          fetch('/debug-save-changes', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              subjectid,
+              editedResponse,
+              title,
+              subjectText,
+              timestamp: Date.now()
+            })
+          })
+          .then(response => response.json())
+          .then(data => {
+            debugInfo.textContent += '\n\nServer Response:\n' + JSON.stringify(data, null, 2);
+            
+            if (data.success) {
+              debugInfo.textContent += '\n\nSAVE SUCCESSFUL! Try refreshing the page to see if changes appear.';
+            } else {
+              debugInfo.textContent += '\n\nSAVE FAILED! Check the error message above.';
+            }
+          })
+          .catch(error => {
+            debugInfo.textContent += '\n\nERROR:\n' + error.message;
+          });
+        });
+      }
+    });
+    
+    // Helper function to display alerts
+    function showAlert(message, type = 'info') {
+      const alertContainer = document.getElementById('alert-container');
+      if (!alertContainer) return;
+      
+      const alertDiv = document.createElement('div');
+      alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+      alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      `;
+      
+      alertContainer.appendChild(alertDiv);
+      
+      // Auto dismiss after 5 seconds
+      setTimeout(() => {
+        alertDiv.classList.remove('show');
+        setTimeout(() => alertDiv.remove(), 150);
+      }, 5000);
+    }
+  </script>
+  <!-- Threat analyzer script -->
+  <script src="/js/threatAnalyzer.js"></script>
+  
+  <!-- Debug functionality for OpenAI API interactions -->
+  <script>
+    // Function to handle generating more threats with AJAX
+    async function generateMoreThreats(subjectId) {
+      // Show loading spinner
+      showLoadingModal('Generating more threats...');
+      
+      try {
+        // Make AJAX request to generate more threats
+        const response = await fetch('/generate-more', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ subjectid: subjectId })
+        });
+        
+        const data = await response.json();
+        
+        // Save debug data to temp object for access in other functions
+        window.generateMoreDebugData = data;
+        
+        // Hide loading modal
+        hideLoadingModal();
+        
+        if (data.success) {
+          // Show success message
+          showAlert('Successfully generated more threats! Refreshing page...', 'success');
+          
+          // Wait a moment and then redirect to see results
+          setTimeout(() => {
+            window.location.href = data.redirect;
+          }, 1500);
+        } else {
+          // Show error and debug information
+          showAlert(`Error: ${data.error}`, 'danger');
+          console.error('Generate More Error:', data);
+          
+          // Automatically show debug modal
+          setTimeout(() => {
+            showDebugModal(subjectId);
+          }, 500);
+        }
+      } catch (error) {
+        hideLoadingModal();
+        showAlert(`Failed to generate more threats: ${error.message}`, 'danger');
+        console.error('Generate More Error:', error);
+      }
+    }
+    
+    // Function to show the debug modal with API interaction details
+    async function showDebugModal(subjectId) {
+      // Clear previous debug info
+      const debugInfoContainer = document.getElementById('debugInfo');
+      debugInfoContainer.innerHTML = `
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+        <p>Loading debug information...</p>
+      `;
+
+      // Show the modal
+      const debugModal = new bootstrap.Modal(document.getElementById('debugModal'));
+      debugModal.show();
+
+      try {
+        // Fetch debug info from Redis
+        const response = await fetch(`/api/debug-info?subjectid=${subjectId}`);
+        const data = await response.json();
+        
+        if (!data || response.status !== 200) {
+          debugInfoContainer.innerHTML = `<div class="alert alert-warning">No debug information available yet. Try running 'Generate More Threats' first.</div>`;
+          return;
+        }
+
+        // Format debug info as JSON with syntax highlighting
+        let formattedHtml = '<div class="debug-sections">';
+        
+        // API Interaction Section
+        formattedHtml += `
+          <div class="card mb-3">
+            <div class="card-header bg-primary text-white">API Interaction Summary</div>
+            <div class="card-body">
+              <dl class="row">
+                <dt class="col-sm-3">API Key Source</dt>
+                <dd class="col-sm-9">${data.apiKeySource || 'Not available'}</dd>
+                
+                <dt class="col-sm-3">Model</dt>
+                <dd class="col-sm-9">${data.model || 'Not available'}</dd>
+                
+                <dt class="col-sm-3">Success</dt>
+                <dd class="col-sm-9">${data.success ? '<span class="text-success">Yes</span>' : '<span class="text-danger">No</span>'}</dd>
+                
+                ${data.error ? `
+                  <dt class="col-sm-3">Error</dt>
+                  <dd class="col-sm-9"><span class="text-danger">${data.error}</span></dd>
+                ` : ''}
+              </dl>
+            </div>
+          </div>
+        `;
+        
+        // Prompt Section
+        formattedHtml += `
+          <div class="card mb-3">
+            <div class="card-header bg-info text-white">Prompt Information</div>
+            <div class="card-body">
+              <h6>Original Prompt ID</h6>
+              <pre class="bg-light p-2">${data.originalPromptId || 'Not available'}</pre>
+              
+              <h6>Subject Text</h6>
+              <pre class="bg-light p-2">${data.subjectText || 'Not available'}</pre>
+              
+              <h6>Prompt Used for Generation</h6>
+              <pre class="bg-light p-2" style="max-height: 300px; overflow-y: auto;">${data.promptUsed ? escapeHtml(data.promptUsed) : 'Not available'}</pre>
+            </div>
+          </div>
+        `;
+        
+        // Response Section
+        formattedHtml += `
+          <div class="card mb-3">
+            <div class="card-header bg-success text-white">Response Information</div>
+            <div class="card-body">
+              <dl class="row">
+                <dt class="col-sm-4">Existing Response Length</dt>
+                <dd class="col-sm-8">${data.existingResponseLength || 'Not available'}</dd>
+                
+                <dt class="col-sm-4">New Response Length</dt>
+                <dd class="col-sm-8">${data.newResponseLength || 'Not available'}</dd>
+              </dl>
+              
+              ${data.responseError ? `
+                <h6 class="text-danger">Response Error</h6>
+                <pre class="bg-light p-2">${JSON.stringify(data.responseError, null, 2)}</pre>
+              ` : ''}
+            </div>
+          </div>
+        `;
+        
+        // Raw Data Section
+        formattedHtml += `
+          <div class="card mb-3">
+            <div class="card-header bg-secondary text-white">Raw Debug Data</div>
+            <div class="card-body">
+              <pre class="bg-light p-2" style="max-height: 500px; overflow-y: auto;">${JSON.stringify(data, null, 2)}</pre>
+            </div>
+          </div>
+        `;
+        
+        formattedHtml += '</div>';
+        debugInfoContainer.innerHTML = formattedHtml;
+      } catch (error) {
+        console.error('Error fetching debug info:', error);
+        debugInfoContainer.innerHTML = `<div class="alert alert-danger">Error fetching debug information: ${error.message}</div>`;
+      }
+    }
+
+    // Loading Modal functions
+    function showLoadingModal(message = 'Loading...') {
+      const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));
+      document.getElementById('loadingModalText').textContent = message;
+      loadingModal.show();
+    }
+    
+    function hideLoadingModal() {
+      const loadingModalElement = document.getElementById('loadingModal');
+      const loadingModal = bootstrap.Modal.getInstance(loadingModalElement);
+      if (loadingModal) {
+        loadingModal.hide();
+        // Clean up backdrop if needed
+        document.body.classList.remove('modal-open');
+        document.querySelectorAll('.modal-backdrop').forEach(backdrop => backdrop.remove());
+      }
+    }
+    
+    // Helper function to escape HTML for safe display
+    function escapeHtml(unsafe) {
+      return unsafe
+         .replace(/&/g, "&amp;")
+         .replace(/</g, "&lt;")
+         .replace(/>/g, "&gt;")
+         .replace(/"/g, "&quot;")
+         .replace(/'/g, "&#039;");
+    }
+
+    // Copy debug info to clipboard
+    function copyDebugInfoToClipboard() {
+      const debugInfo = document.getElementById('debugInfo');
+      const range = document.createRange();
+      range.selectNode(debugInfo);
+      window.getSelection().removeAllRanges();
+      window.getSelection().addRange(range);
+      document.execCommand('copy');
+      window.getSelection().removeAllRanges();
+      
+      // Show a temporary success message
+      const copyBtn = document.querySelector('#debugModal button.btn-outline-secondary');
+      const originalText = copyBtn.innerHTML;
+      copyBtn.innerHTML = 'Copied!';
+      copyBtn.classList.add('btn-success');
+      copyBtn.classList.remove('btn-outline-secondary');
+      
+      setTimeout(() => {
+        copyBtn.innerHTML = originalText;
+        copyBtn.classList.remove('btn-success');
+        copyBtn.classList.add('btn-outline-secondary');
+      }, 2000);
+    }
+    // Threat Search Functionality
+    function initThreatSearch() {
+      // Elements for threat search
+      const searchInput = document.getElementById('threatSearchInput');
+      const searchStats = document.getElementById('searchStats');
+      const currentMatchIndex = document.getElementById('currentMatchIndex');
+      const totalMatches = document.getElementById('totalMatches');
+      const searchPrevBtn = document.getElementById('searchPrevBtn');
+      const searchNextBtn = document.getElementById('searchNextBtn');
+      const clearSearchBtn = document.getElementById('clearSearchBtn');
+      const searchOptionsBtn = document.getElementById('searchOptionsBtn');
+      const responseTextarea = document.getElementById('editedResponse');
+      
+      // Sensitivity controls
+      const caseSensitiveCheckbox = document.getElementById('caseSensitiveCheckbox');
+      const wholeWordCheckbox = document.getElementById('wholeWordCheckbox');
+      const threatOnlyCheckbox = document.getElementById('threatOnlyCheckbox');
+      const sensitivityRange = document.getElementById('sensitivityRange');
+      const sensitivityValue = document.getElementById('sensitivityValue');
+      
+      if (!searchInput || !responseTextarea) return; // Exit if elements aren't found
+      
+      // Search variables
+      let matches = [];
+      let currentMatch = -1;
+      
+      // Update sensitivity label based on slider value
+      function updateSensitivityLabel() {
+        const value = parseInt(sensitivityRange.value);
+        let label = '';
+        
+        switch(value) {
+          case 1:
+            label = 'Low';
+            break;
+          case 2:
+            label = 'Medium';
+            break;
+          case 3:
+            label = 'High';
+            break;
+        }
+        
+        sensitivityValue.textContent = label;
+      }
+      
+      // Initialize sensitivity label
+      if (sensitivityRange && sensitivityValue) {
+        updateSensitivityLabel();
+        sensitivityRange.addEventListener('input', updateSensitivityLabel);
+        sensitivityRange.addEventListener('change', performSearch); // Re-search when sensitivity changes
+      }
+      
+      // Add listeners to sensitivity controls
+      if (caseSensitiveCheckbox) caseSensitiveCheckbox.addEventListener('change', performSearch);
+      if (wholeWordCheckbox) wholeWordCheckbox.addEventListener('change', performSearch);
+      if (threatOnlyCheckbox) threatOnlyCheckbox.addEventListener('change', performSearch);
+      
+      // Function to perform search
+      function performSearch() {
+        const searchTerm = searchInput.value.trim();
+        
+        // Reset search if term is empty
+        if (!searchTerm) {
+          clearSearch();
+          return;
+        }
+        
+        // Get content from textarea
+        const content = responseTextarea.value;
+        
+        // Get search options
+        const caseSensitive = caseSensitiveCheckbox && caseSensitiveCheckbox.checked;
+        const wholeWord = wholeWordCheckbox && wholeWordCheckbox.checked;
+        const threatOnly = threatOnlyCheckbox && threatOnlyCheckbox.checked;
+        const sensitivity = sensitivityRange ? parseInt(sensitivityRange.value) : 2;
+        
+        // Prepare search settings
+        let flags = caseSensitive ? 'g' : 'gi';
+        let searchPattern;
+        
+        // Find all matches
+        matches = [];
+        let match;
+        
+        // Build search pattern based on settings
+        let pattern = escapeRegExp(searchTerm);
+        if (wholeWord) {
+          pattern = `\\b${pattern}\\b`;
+        }
+        
+        searchPattern = new RegExp(pattern, flags);
+        
+        // First search for threats if prioritizing threats
+        if (threatOnly) {
+          // Match threat headings based on sensitivity
+          // Find threats that contain the search term
+          const threatRegex = /## ([^\n]+)/g;
+          while ((match = threatRegex.exec(content)) !== null) {
+            const threatTitle = match[1];
+            
+            // Check if the threat title contains the search term
+            let threatMatch = false;
+            
+            if (caseSensitive) {
+              threatMatch = threatTitle.includes(searchTerm);
+            } else {
+              threatMatch = threatTitle.toLowerCase().includes(searchTerm.toLowerCase());
+            }
+            
+            // For high sensitivity (3), also match threats with similar words
+            if (sensitivity === 3 && !threatMatch) {
+              // Perform fuzzy matching for high sensitivity
+              const words = searchTerm.toLowerCase().split(/\s+/);
+              threatMatch = words.some(word => {
+                if (word.length < 3) return false; // Skip very short words
+                return threatTitle.toLowerCase().includes(word);
+              });
+            }
+            
+            if (threatMatch) {
+              matches.push({
+                index: match.index,
+                text: match[0],
+                isThreat: true,
+                line: content.substring(0, match.index).split('\n').length - 1
+              });
+            }
+          }
+        }
+        
+        // If sensitivity is higher than Low or if no threat matches found, search in content
+        if (sensitivity > 1 || matches.length === 0) {
+          // Find regular text matches
+          while ((match = searchPattern.exec(content)) !== null) {
+            // Skip if already captured as a threat or if we only want threats
+            const alreadyMatchedAsThreat = matches.some(m => 
+              m.isThreat && 
+              match.index >= m.index && 
+              match.index < m.index + m.text.length
+            );
+            
+            // For low sensitivity (1) and threat-only mode, skip non-threat matches when threats were found
+            if ((threatOnly && sensitivity === 1 && matches.length > 0) || alreadyMatchedAsThreat) {
+              continue;
+            }
+            
+            // Add the match
+            matches.push({
+              index: match.index,
+              text: match[0],
+              isThreat: false,
+              line: content.substring(0, match.index).split('\n').length - 1
+            });
+          }
+        }
+        
+        // Update search stats
+        if (matches.length > 0) {
+          currentMatch = 0;
+          updateSearchStats();
+          highlightCurrentMatch();
+        } else {
+          searchStats.style.display = 'block';
+          currentMatchIndex.textContent = '0';
+          totalMatches.textContent = '0';
+        }
+      }
+      
+      // Function to update search stats
+      function updateSearchStats() {
+        searchStats.style.display = 'block';
+        currentMatchIndex.textContent = matches.length > 0 ? (currentMatch + 1).toString() : '0';
+        totalMatches.textContent = matches.length.toString();
+      }
+      
+      // Function to highlight current match
+      function highlightCurrentMatch() {
+        if (matches.length === 0 || currentMatch === -1) return;
+        
+        // Highlight current match
+        const match = matches[currentMatch];
+        
+        // For textarea: scroll to position and select text
+        responseTextarea.focus();
+        responseTextarea.setSelectionRange(match.index, match.index + match.text.length);
+        
+        // Scroll to the match (approximately)
+        const lineHeight = 18; // Approximate line height in pixels
+        const scrollPosition = match.line * lineHeight - 100;
+        responseTextarea.scrollTop = scrollPosition > 0 ? scrollPosition : 0;
+      }
+      
+      // Function to clear search
+      function clearSearch() {
+        searchInput.value = '';
+        matches = [];
+        currentMatch = -1;
+        searchStats.style.display = 'none';
+        // Don't reset sensitivity options - they are maintained between searches
+      }
+      
+      // Go to next match
+      function nextMatch() {
+        if (matches.length === 0) return;
+        
+        currentMatch = (currentMatch + 1) % matches.length;
+        updateSearchStats();
+        highlightCurrentMatch();
+      }
+      
+      // Go to previous match
+      function prevMatch() {
+        if (matches.length === 0) return;
+        
+        currentMatch = (currentMatch - 1 + matches.length) % matches.length;
+        updateSearchStats();
+        highlightCurrentMatch();
+      }
+      
+      // Helper function to escape regular expression special characters
+      function escapeRegExp(string) {
+        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      }
+      
+      // Event listeners
+      searchInput.addEventListener('input', performSearch);
+      searchInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          nextMatch();
+        } else if (e.key === 'Escape') {
+          clearSearch();
+        }
+      });
+      
+      searchNextBtn.addEventListener('click', nextMatch);
+      searchPrevBtn.addEventListener('click', prevMatch);
+      clearSearchBtn.addEventListener('click', clearSearch);
+      
+      // Add some CSS for search highlighting
+      const style = document.createElement('style');
+      style.innerHTML = `
+        .highlighted-match {
+          background: #ffeb3b;
+          color: #000;
+        }
+        
+        #threatSearchInput:focus {
+          border-color: var(--primary-color);
+          box-shadow: 0 0 0 0.2rem rgba(var(--primary-rgb), 0.25);
+        }
+      `;
+      document.head.appendChild(style);
+    }
+  </script>
+  
+  <!-- Debug Modal for OpenAI API interactions -->
+  <div class="modal fade" id="debugModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header bg-dark text-white">
+          <h5 class="modal-title">API Debug Information</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="d-flex justify-content-end mb-3">
+            <button class="btn btn-sm btn-outline-secondary" onclick="copyDebugInfoToClipboard()">Copy All</button>
+          </div>
+          <div id="debugInfo" class="overflow-auto">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+            <p>Loading debug information...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Loading Modal -->
+  <div class="modal fade" id="loadingModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-body text-center p-4">
+          <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+          <p id="loadingModalText" class="mb-0">Loading...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

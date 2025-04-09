@@ -1,0 +1,92 @@
+<!-- Prompts List Modal -->
+<div class="modal fade" id="promptsModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Prompts List</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <!-- Prompts List Section -->
+        <div id="prompts-list-section">
+          <div class="row" id="prompts-list">
+            <!-- Prompts will be loaded here dynamically -->
+          </div>
+        </div>
+        
+        <!-- View/Edit Prompt Section -->
+        <div id="view-edit-prompt" class="d-none">
+          <form>
+            <input type="hidden" id="prompt-id">
+            <div class="mb-3">
+              <label for="prompt-title" class="form-label">Title</label>
+              <input type="text" class="form-control" id="prompt-title" placeholder="Enter prompt title">
+            </div>
+            <div class="mb-3">
+              <label for="prompt-text" class="form-label">Prompt Text</label>
+              <textarea class="form-control" id="prompt-text" rows="10" placeholder="Enter prompt text"></textarea>
+            </div>
+            <div class="d-flex justify-content-between">
+              <button type="button" class="btn btn-danger" id="delete-prompt-btn">Delete</button>
+              <div>
+                <button type="button" class="btn btn-secondary" id="back-to-prompts-btn">Back</button>
+                <button type="button" class="btn btn-primary" id="update-prompt-btn">Update</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newPromptModal">Add Prompt</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- New Prompt Modal -->
+<div class="modal fade" id="newPromptModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Create New Prompt</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label for="new-prompt-title" class="form-label">Title</label>
+          <input type="text" class="form-control" id="new-prompt-title" placeholder="Enter a title for the prompt">
+        </div>
+        <div class="mb-3">
+          <label for="new-prompt-text" class="form-label">Prompt Text</label>
+          <textarea class="form-control" id="new-prompt-text" rows="10" placeholder="Enter the prompt template"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="save-new-prompt-btn">Save Prompt</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+<!-- Confirmation Modal -->
+<div class="modal fade" id="confirmationModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Confirmation</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p id="confirmation-message"></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-danger" id="confirm-action-btn">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>

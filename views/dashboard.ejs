@@ -1,0 +1,130 @@
+<%- include('partials/header', { pageTitle: 'Dashboard - Threat Model Generator', active: 'dashboard', extraCss: [] }) %>
+
+<!-- Hidden data for charts -->
+<script type="application/json" id="chartData">
+  <%- JSON.stringify(stats) %>
+</script>
+
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="mb-0">Welcome to Threat Model Generator MK5</h1>
+    <div class="btn-group">
+      <a href="/create" class="btn btn-primary">
+        <i class="bi bi-plus-circle me-1"></i>Create New Threat Model
+      </a>
+      <a href="/models" class="btn btn-info text-white">
+        <i class="bi bi-list-ul me-1"></i>View All Models
+      </a>
+      <button type="button" class="btn btn-outline-secondary" id="refreshStats">
+        <i class="bi bi-arrow-repeat me-1"></i>Refresh
+      </button>
+    </div>
+  </div>
+  
+  <!-- Toast container for notifications -->
+  <div id="toastContainer" class="toast-container position-fixed bottom-0 end-0 p-3"></div>
+
+  <!-- Stats Overview -->
+  <div class="row mb-4">
+    <div class="col-md-4">
+      <div class="card h-100">
+        <div class="card-body text-center">
+          <div class="display-4 mb-2 stat-value" data-stat="totalModels"><%= stats.totalModels %></div>
+          <h5>Threat Models</h5>
+          <p class="text-secondary mb-0">Total created</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card h-100">
+        <div class="card-body text-center">
+          <div class="display-4 mb-2 stat-value" data-stat="totalReports"><%= stats.totalReports %></div>
+          <h5>Reports</h5>
+          <p class="text-secondary mb-0">Total generated</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card h-100">
+        <div class="card-body text-center">
+          <div class="display-4 mb-2 stat-value" data-stat="avgThreatsPerModel"><%= stats.avgThreatsPerModel.toFixed(1) %></div>
+          <h5>Avg. Threats</h5>
+          <p class="text-secondary mb-0">Per threat model</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div class="row mb-4">
+    <div class="col-md-8">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">Operating Environments</h5>
+        </div>
+        <div class="card-body" style="height: 350px;">
+          <canvas id="modelsChart"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">Top Threat Categories</h5>
+        </div>
+        <div class="card-body" style="height: 350px;">
+          <canvas id="categoriesChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Activity -->
+  <div class="card">
+    <div class="card-header">
+      <h5 class="mb-0">Recent Activity</h5>
+    </div>
+    <div class="card-body p-0">
+      <% if (recentActivity && recentActivity.length > 0) { %>
+        <div class="table-responsive">
+          <table class="table table-hover mb-0" id="recentActivityTable">
+            <thead>
+              <tr>
+                <th>Activity</th>
+                <th>Item</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% recentActivity.forEach(activity => { %>
+                <tr>
+                  <td>
+                    <% if (activity.type === 'create_model') { %>
+                      <span class="badge bg-primary"><i class="bi bi-plus-circle me-1"></i>New Model</span>
+                    <% } else if (activity.type === 'create_report') { %>
+                      <span class="badge bg-success"><i class="bi bi-file-earmark-text me-1"></i>New Report</span>
+                    <% } else if (activity.type === 'view_model') { %>
+                      <span class="badge bg-info"><i class="bi bi-eye me-1"></i>Viewed Model</span>
+                    <% } %>
+                  </td>
+                  <td>
+                    <a href="<%= activity.link %>" class="text-decoration-none">
+                      <%= activity.title %>
+                    </a>
+                  </td>
+                  <td><%= new Date(activity.date).toLocaleString() %></td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      <% } else { %>
+        <div class="text-center py-4">
+          <p class="text-secondary mb-0">No recent activity found</p>
+        </div>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<%- include('partials/footer', { extraJs: ['/js/charts-util.js', '/js/dashboard.js'] }) %>

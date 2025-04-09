@@ -1,0 +1,377 @@
+<%- include('partials/header', { pageTitle: 'Prompt Templates - Threat Model Generator', active: 'prompts', extraCss: [] }) %>
+
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="mb-0">Prompt Templates</h1>
+    <div class="btn-group">
+      <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newPromptModal">
+        <i class="bi bi-plus-circle me-1"></i>Create New Prompt
+      </button>
+      <button type="button" class="btn btn-outline-secondary" id="refreshPrompts">
+        <i class="bi bi-arrow-repeat me-1"></i>Refresh
+      </button>
+    </div>
+  </div>
+  
+  <!-- Toast container for notifications -->
+  <div id="toastContainer" class="toast-container position-fixed bottom-0 end-0 p-3"></div>
+
+  <!-- Search and Bulk Actions Row -->
+  <div class="row mb-3">
+    <div class="col-md-6">
+      <div class="input-group">
+        <input type="text" class="form-control" id="searchPrompts" placeholder="Search prompts...">
+        <button class="btn btn-outline-primary" type="button" id="searchButton">
+          <i class="bi bi-search"></i>
+        </button>
+      </div>
+    </div>
+    <div class="col-md-6 text-md-end">
+      <div class="btn-group">
+        <button type="button" class="btn btn-outline-danger" id="deleteSelectedBtn" disabled>
+          <i class="bi bi-trash me-1"></i>Delete Selected
+        </button>
+        <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+          <i class="bi bi-gear me-1"></i>Actions
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end">
+          <li><button class="dropdown-item" type="button" id="selectAllBtn"><i class="bi bi-check-all me-2"></i>Select All</button></li>
+          <li><button class="dropdown-item" type="button" id="deselectAllBtn"><i class="bi bi-x-lg me-2"></i>Deselect All</button></li>
+          <li><hr class="dropdown-divider"></li>
+          <li><button class="dropdown-item" type="button" id="exportSelectedBtn"><i class="bi bi-download me-2"></i>Export Selected</button></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Prompts Table -->
+  <div class="card shadow-sm">
+    <div class="card-body p-0">
+      <% if (prompts && prompts.length > 0) { %>
+        <div class="table-responsive">
+          <table class="table table-hover mb-0" id="prompts-table">
+            <thead class="table-light">
+              <tr>
+                <th width="40">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="selectAll">
+                  </div>
+                </th>
+                <th>Title</th>
+                <th>Created</th>
+                <th width="180">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% prompts.forEach(prompt => { %>
+                <tr data-id="<%= prompt.id %>">
+                  <td>
+                    <div class="form-check">
+                      <input class="form-check-input prompt-checkbox" type="checkbox" value="<%= prompt.id %>">
+                    </div>
+                  </td>
+                  <td class="fw-medium"><%= prompt.title %></td>
+                  <td><%= new Date(prompt.createdAt).toLocaleDateString() %></td>
+                  <td>
+                    <div class="btn-group" role="group">
+                      <button type="button" class="btn btn-sm btn-outline-primary view-prompt-btn" data-prompt-id="<%= prompt.id %>" title="View">
+                        <i class="bi bi-eye"></i>
+                      </button>
+                      <button type="button" class="btn btn-sm btn-outline-secondary edit-prompt-btn" data-prompt-id="<%= prompt.id %>" title="Edit">
+                        <i class="bi bi-pencil"></i>
+                      </button>
+                      <button type="button" class="btn btn-sm btn-outline-danger delete-prompt-btn" data-prompt-id="<%= prompt.id %>" data-prompt-title="<%= prompt.title %>" title="Delete">
+                        <i class="bi bi-trash"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      <% } else { %>
+        <div class="alert alert-info m-3">
+          <i class="bi bi-info-circle me-2"></i>No prompt templates found. <button type="button" class="btn btn-link p-0 align-baseline" data-bs-toggle="modal" data-bs-target="#newPromptModal">Create your first prompt template</button>.
+        </div>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<!-- Deletion Confirmation Modal -->
+<div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="confirmModalLabel">Confirm Deletion</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="confirmModalBody">
+        Are you sure you want to delete the selected prompts? This action cannot be undone.
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Include the prompts modal from partials -->
+<%- include('partials/prompts-modal') %>
+
+<!-- JavaScript for the prompts page -->
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Handle the refresh button
+    document.getElementById('refreshPrompts').addEventListener('click', function() {
+      window.location.reload();
+    });
+
+    // Handle search functionality
+    document.getElementById('searchButton').addEventListener('click', function() {
+      performSearch();
+    });
+
+    document.getElementById('searchPrompts').addEventListener('keyup', function(e) {
+      if (e.key === 'Enter') {
+        performSearch();
+      }
+    });
+
+    function performSearch() {
+      const searchTerm = document.getElementById('searchPrompts').value.toLowerCase();
+      const rows = document.querySelectorAll('#prompts-table tbody tr');
+      
+      rows.forEach(row => {
+        const title = row.querySelector('td:nth-child(2)').textContent.toLowerCase();
+        if (title.includes(searchTerm)) {
+          row.style.display = '';
+        } else {
+          row.style.display = 'none';
+        }
+      });
+    }
+
+    // Handle select all checkbox
+    document.getElementById('selectAll').addEventListener('change', function() {
+      const isChecked = this.checked;
+      document.querySelectorAll('.prompt-checkbox').forEach(checkbox => {
+        checkbox.checked = isChecked;
+      });
+      updateDeleteButtonState();
+    });
+
+    // Handle individual checkboxes
+    document.querySelectorAll('.prompt-checkbox').forEach(checkbox => {
+      checkbox.addEventListener('change', function() {
+        updateDeleteButtonState();
+        
+        // Update the "select all" checkbox
+        const allCheckboxes = document.querySelectorAll('.prompt-checkbox');
+        const checkedCount = document.querySelectorAll('.prompt-checkbox:checked').length;
+        document.getElementById('selectAll').checked = checkedCount === allCheckboxes.length;
+      });
+    });
+
+    // Select All and Deselect All buttons
+    document.getElementById('selectAllBtn').addEventListener('click', function() {
+      document.querySelectorAll('.prompt-checkbox').forEach(checkbox => {
+        checkbox.checked = true;
+      });
+      document.getElementById('selectAll').checked = true;
+      updateDeleteButtonState();
+    });
+
+    document.getElementById('deselectAllBtn').addEventListener('click', function() {
+      document.querySelectorAll('.prompt-checkbox').forEach(checkbox => {
+        checkbox.checked = false;
+      });
+      document.getElementById('selectAll').checked = false;
+      updateDeleteButtonState();
+    });
+
+    // Update delete button state based on selections
+    function updateDeleteButtonState() {
+      const checkedCount = document.querySelectorAll('.prompt-checkbox:checked').length;
+      document.getElementById('deleteSelectedBtn').disabled = checkedCount === 0;
+    }
+
+    // Handle Delete Selected button
+    document.getElementById('deleteSelectedBtn').addEventListener('click', function() {
+      const selectedPrompts = Array.from(document.querySelectorAll('.prompt-checkbox:checked'))
+        .map(checkbox => checkbox.value);
+      
+      if (selectedPrompts.length === 0) return;
+      
+      const modalBody = document.getElementById('confirmModalBody');
+      modalBody.textContent = `Are you sure you want to delete ${selectedPrompts.length} prompt${selectedPrompts.length > 1 ? 's' : ''}? This action cannot be undone.`;
+      
+      const confirmModal = new bootstrap.Modal(document.getElementById('confirmModal'));
+      confirmModal.show();
+      
+      document.getElementById('confirmDeleteBtn').onclick = function() {
+        deletePrompts(selectedPrompts);
+        confirmModal.hide();
+      };
+    });
+
+    // Handle export selected
+    document.getElementById('exportSelectedBtn').addEventListener('click', function() {
+      const selectedPrompts = Array.from(document.querySelectorAll('.prompt-checkbox:checked'))
+        .map(checkbox => checkbox.value);
+      
+      if (selectedPrompts.length === 0) {
+        showToast('Warning', 'Please select at least one prompt to export', 'warning');
+        return;
+      }
+      
+      // Fetch the selected prompts
+      fetch('/api/prompts')
+        .then(response => response.json())
+        .then(data => {
+          if (!data.success) {
+            showToast('Error', 'Failed to fetch prompts', 'danger');
+            return;
+          }
+          
+          // Filter prompts to only include selected ones
+          const selectedPromptData = data.prompts.filter(prompt => selectedPrompts.includes(prompt.id));
+          
+          // Convert to JSON and create download
+          const dataStr = JSON.stringify({ prompts: selectedPromptData }, null, 2);
+          const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+          
+          const exportFileDefaultName = `prompt-templates-${new Date().toISOString().split('T')[0]}.json`;
+          
+          const linkElement = document.createElement('a');
+          linkElement.setAttribute('href', dataUri);
+          linkElement.setAttribute('download', exportFileDefaultName);
+          linkElement.click();
+          
+          showToast('Success', `${selectedPromptData.length} prompts exported successfully`, 'success');
+        })
+        .catch(error => {
+          console.error('Error exporting prompts:', error);
+          showToast('Error', 'Failed to export prompts', 'danger');
+        });
+    });
+    // Export functionality implemented above
+
+    // View/Edit prompt buttons
+    document.querySelectorAll('.view-prompt-btn, .edit-prompt-btn').forEach(button => {
+      button.addEventListener('click', function() {
+        const promptId = this.getAttribute('data-prompt-id');
+        const isEdit = this.classList.contains('edit-prompt-btn');
+        
+        // Open the prompts modal
+        const promptsModal = new bootstrap.Modal(document.getElementById('promptsModal'));
+        promptsModal.show();
+        
+        // Set data attribute to indicate which prompt to view/edit
+        document.getElementById('promptsModal').setAttribute('data-view-prompt-id', promptId);
+        
+        // The fetchPrompts function in prompts-manager.js will handle loading the prompt details
+        // and switch to edit mode if needed
+        if (isEdit) {
+          document.getElementById('promptsModal').setAttribute('data-edit-mode', 'true');
+        }
+      });
+    });
+
+    // Delete prompt button
+    document.querySelectorAll('.delete-prompt-btn').forEach(button => {
+      button.addEventListener('click', function() {
+        const promptId = this.getAttribute('data-prompt-id');
+        const promptTitle = this.getAttribute('data-prompt-title');
+        
+        confirmDelete(promptId, promptTitle);
+      });
+    });
+
+    // Function to delete prompts
+    function deletePrompts(promptIds) {
+      fetch('/api/delete-prompts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ promptsToDelete: promptIds })
+      })
+      .then(response => {
+        if (response.ok) {
+          showToast('Success', `${promptIds.length > 1 ? 'Prompts' : 'Prompt'} deleted successfully`, 'success');
+          
+          // Remove deleted rows from the table
+          promptIds.forEach(id => {
+            const row = document.querySelector(`tr[data-id="${id}"]`);
+            if (row) row.remove();
+          });
+          
+          // Update UI if table is now empty
+          if (document.querySelectorAll('#prompts-table tbody tr').length === 0) {
+            document.querySelector('.card-body').innerHTML = `
+              <div class="alert alert-info m-3">
+                <i class="bi bi-info-circle me-2"></i>No prompt templates found. <button type="button" class="btn btn-link p-0 align-baseline" data-bs-toggle="modal" data-bs-target="#newPromptModal">Create your first prompt template</button>.
+              </div>
+            `;
+          }
+          
+          updateDeleteButtonState();
+        } else {
+          showToast('Error', 'Failed to delete prompts', 'danger');
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        showToast('Error', 'An error occurred while deleting prompts', 'danger');
+      });
+    }
+
+    // Confirm deletion of a single prompt
+    function confirmDelete(promptId, title) {
+      const modalBody = document.getElementById('confirmModalBody');
+      modalBody.textContent = `Are you sure you want to delete "${title}"? This action cannot be undone.`;
+      
+      const confirmModal = new bootstrap.Modal(document.getElementById('confirmModal'));
+      confirmModal.show();
+      
+      document.getElementById('confirmDeleteBtn').onclick = function() {
+        deletePrompts([promptId]);
+        confirmModal.hide();
+      };
+    }
+    
+    // Show toast notification
+    function showToast(title, message, type = 'info') {
+      const toastContainer = document.getElementById('toastContainer');
+      const id = 'toast-' + Date.now();
+      
+      const toastHTML = `
+        <div id="${id}" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+          <div class="toast-header bg-${type} text-white">
+            <strong class="me-auto">${title}</strong>
+            <small>Just now</small>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+          </div>
+          <div class="toast-body">
+            ${message}
+          </div>
+        </div>
+      `;
+      
+      toastContainer.insertAdjacentHTML('beforeend', toastHTML);
+      const toastElement = document.getElementById(id);
+      const toast = new bootstrap.Toast(toastElement, { delay: 5000 });
+      toast.show();
+      
+      // Remove toast from DOM after it's hidden
+      toastElement.addEventListener('hidden.bs.toast', function() {
+        toastElement.remove();
+      });
+    }
+  });
+</script>
+
+<%- include('partials/footer', { extraJs: ['js/prompts-manager.js', 'js/fix-prompts.js'] }) %>

@@ -1,0 +1,324 @@
+/**
+ * Threat Model Generator - Mark 4
+ * Main CSS with a gray-spectrum color scheme
+ */
+
+:root {
+  /* Gray spectrum palette */
+  --gray-100: #f5f5f5;
+  --gray-200: #e5e5e5;
+  --gray-300: #d4d4d4;
+  --gray-400: #a3a3a3;
+  --gray-500: #737373;
+  --gray-600: #525252;
+  --gray-700: #404040;
+  --gray-800: #262626;
+  --gray-900: #171717;
+  
+  /* Accent colors */
+  --accent-blue: #4b5563;
+  --accent-green: #4b635e;
+  --accent-red: #63574b;
+  
+  /* Functional colors */
+  --text-primary: var(--gray-800);
+  --text-secondary: var(--gray-600);
+  --text-tertiary: var(--gray-500);
+  --background-primary: var(--gray-100);
+  --background-secondary: var(--gray-200);
+  --background-tertiary: var(--gray-300);
+  --border-color: var(--gray-300);
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  background-color: var(--background-primary);
+  color: var(--text-primary);
+  line-height: 1.6;
+  margin: 0;
+  padding: 0;
+}
+
+/* Navigation and header */
+.navbar {
+  background-color: var(--gray-800) !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.navbar-brand {
+  font-weight: 700;
+  color: var(--gray-100) !important;
+}
+
+.nav-link {
+  color: var(--gray-300) !important;
+  transition: color 0.3s ease;
+}
+
+.nav-link:hover {
+  color: var(--gray-100) !important;
+}
+
+.navbar-toggler {
+  border-color: var(--gray-500);
+}
+
+/* Main container */
+.container {
+  padding-top: 1.5rem;
+  padding-bottom: 1.5rem;
+}
+
+/* Cards */
+.card {
+  background-color: white;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  margin-bottom: 1.5rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+  background-color: var(--gray-200);
+  border-bottom: 1px solid var(--border-color);
+  font-weight: 600;
+  padding: 1rem;
+}
+
+.card-body {
+  padding: 1.5rem;
+}
+
+.card-footer {
+  background-color: var(--gray-100);
+  border-top: 1px solid var(--border-color);
+  padding: 0.75rem 1rem;
+}
+
+/* Buttons */
+.btn-primary {
+  background-color: var(--accent-blue);
+  border-color: var(--accent-blue);
+}
+
+.btn-primary:hover {
+  background-color: var(--gray-700);
+  border-color: var(--gray-700);
+}
+
+.btn-success {
+  background-color: var(--accent-green);
+  border-color: var(--accent-green);
+}
+
+.btn-success:hover {
+  background-color: #3e5249;
+  border-color: #3e5249;
+}
+
+.btn-danger {
+  background-color: var(--accent-red);
+  border-color: var(--accent-red);
+}
+
+.btn-danger:hover {
+  background-color: #55483d;
+  border-color: #55483d;
+}
+
+.btn-outline-secondary {
+  color: var(--gray-700);
+  border-color: var(--gray-400);
+}
+
+.btn-outline-secondary:hover {
+  background-color: var(--gray-200);
+  color: var(--gray-800);
+}
+
+/* Forms */
+.form-control {
+  border: 1px solid var(--gray-300);
+  border-radius: 4px;
+}
+
+.form-control:focus {
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 0.2rem rgba(107, 114, 128, 0.25);
+}
+
+.form-label {
+  color: var(--text-secondary);
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+
+textarea.form-control {
+  min-height: 120px;
+}
+
+/* Alerts */
+.alert-primary {
+  background-color: var(--gray-200);
+  border-color: var(--gray-300);
+  color: var(--gray-800);
+}
+
+.alert-success {
+  background-color: #e2e8e5;
+  border-color: #d4dcd9;
+  color: var(--gray-800);
+}
+
+.alert-danger {
+  background-color: #e8e2e0;
+  border-color: #dcd4d2;
+  color: var(--gray-800);
+}
+
+/* Tables */
+.table {
+  color: var(--text-primary);
+}
+
+.table thead th {
+  background-color: var(--gray-200);
+  border-bottom: 2px solid var(--gray-300);
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.table-hover tbody tr:hover {
+  background-color: var(--gray-100);
+}
+
+/* Pagination */
+.pagination .page-link {
+  color: var(--gray-700);
+  border: 1px solid var(--gray-300);
+}
+
+.pagination .page-item.active .page-link {
+  background-color: var(--gray-600);
+  border-color: var(--gray-600);
+  color: white;
+}
+
+.pagination .page-link:hover {
+  background-color: var(--gray-200);
+  color: var(--gray-800);
+}
+
+/* Utilities */
+.text-muted {
+  color: var(--text-tertiary) !important;
+}
+
+.border-gray {
+  border-color: var(--border-color) !important;
+}
+
+.bg-gray-100 { background-color: var(--gray-100); }
+.bg-gray-200 { background-color: var(--gray-200); }
+.bg-gray-300 { background-color: var(--gray-300); }
+.bg-gray-400 { background-color: var(--gray-400); }
+.bg-gray-500 { background-color: var(--gray-500); }
+.bg-gray-600 { background-color: var(--gray-600); }
+.bg-gray-700 { background-color: var(--gray-700); }
+.bg-gray-800 { background-color: var(--gray-800); }
+.bg-gray-900 { background-color: var(--gray-900); }
+
+/* Threat model specific styles */
+.threat-card {
+  margin-bottom: 1.5rem;
+  border-left: 4px solid var(--accent-blue);
+}
+
+.threat-title {
+  font-weight: 600;
+  color: var(--gray-800);
+  margin-bottom: 0.75rem;
+}
+
+.threat-description {
+  margin-bottom: 1rem;
+}
+
+.threat-mitigation {
+  background-color: var(--gray-100);
+  padding: 1rem;
+  border-radius: 4px;
+  border-left: 3px solid var(--accent-green);
+}
+
+/* Loading indicator */
+.loading-spinner {
+  display: inline-block;
+  width: 2rem;
+  height: 2rem;
+  border: 3px solid rgba(0, 0, 0, 0.1);
+  border-radius: 50%;
+  border-top-color: var(--accent-blue);
+  animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Footer */
+footer {
+  background-color: var(--gray-800);
+  color: var(--gray-300);
+  padding: 2rem 0;
+  margin-top: 3rem;
+}
+
+footer a {
+  color: var(--gray-200);
+  text-decoration: none;
+}
+
+footer a:hover {
+  color: var(--gray-100);
+  text-decoration: underline;
+}
+
+/* Service Status Indicators */
+.service-status {
+  margin-right: 15px;
+}
+
+.status-indicator {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin: 0 5px;
+  transition: background-color 0.3s ease;
+}
+
+.status-indicator.loading {
+  background-color: var(--gray-500);
+  animation: pulse 1.5s infinite;
+}
+
+.status-indicator.online {
+  background-color: #28a745; /* Green */
+}
+
+.status-indicator.offline {
+  background-color: #dc3545; /* Red */
+}
+
+@keyframes pulse {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
+}

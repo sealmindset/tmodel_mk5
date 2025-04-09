@@ -1,0 +1,180 @@
+const express = require('express');
+const router = express.Router();
+const path = require('path');
+const redis = require('redis');
+
+// Import ensureAuthenticated from app.js instead of directly from auth
+// We'll pass this middleware via app.locals when registering routes
+
+// Redis client setup
+const redisHost = process.env.REDIS_HOST || 'localhost';
+const redisPort = process.env.REDIS_PORT || 6379;
+
+const client = redis.createClient({
+  socket: {
+    host: redisHost,
+    port: redisPort,
+  },
+  password: process.env.REDIS_PASSWORD,
+});
+
+client.on('error', (err) => {
+  console.error('Redis error in routes/main.js: ', err);
+});
+
+client.connect().catch(console.error);
+
+// Dashboard (now the index route)
+router.get('/', async (req, res) => {
+  try {
+    // Get stats for dashboard
+    const stats = {
+      totalModels: await getTotalModelCount(),
+      totalReports: await getTotalReportCount(),
+      avgThreatsPerModel: await getAverageThreatsPerModel(),
+      modelsByMonth: await getModelsByMonth(),
+      topThreatCategories: await getTopThreatCategories()
+    };
+    
+    // Get recent activity
+    const recentActivity = await getRecentActivity(10);
+
+    res.render('dashboard', {
+      user: req.session.username,
+      stats,
+      recentActivity
+    });
+  } catch (error) {
+    console.error('Error loading dashboard:', error);
+    res.status(500).send('Error loading dashboard.');
+  }
+});
+
+// Create new threat model page
+router.get('/create', async (req, res) => {
+  try {
+    res.render('create', {
+      user: req.session.username,
+      error: null,
+      success: null
+    });
+  } catch (error) {
+    console.error('Error loading create page:', error);
+    res.status(500).send('Error loading create page.');
+  }
+});
+
+// Helper functions for statistics
+async function getTotalModelCount() {
+  const keys = await client.keys('subject:*:title');
+  return keys.length;
+}
+
+async function getTotalReportCount() {
+  const keys = await client.keys('reports:*:reporttitle');
+  return keys.length;
+}
+
+async function getAverageThreatsPerModel() {
+  // This is a placeholder. In a real implementation, you would count
+  // the number of threats across all models and divide by the model count.
+  return 5.8; // Example value
+}
+
+async function getModelsByMonth() {
+  // This is now returning operating environments instead of months
+  // In a real implementation, you would aggregate models by environment
+  return [
+    { month: 'AWS', count: 24 },
+    { month: 'Azure', count: 19 },
+    { month: 'GCP', count: 15 },
+    { month: 'Data Center', count: 12 },
+    { month: 'OCI', count: 8 },
+    { month: 'Other', count: 5 }
+  ];
+}
+
+async function getTopThreatCategories() {
+  // This is a placeholder. In a real implementation, you would count
+  // threat categories across all models.
+  return [
+    { category: 'Injection', count: 18 },
+    { category: 'Authentication', count: 15 },
+    { category: 'XSS', count: 12 },
+    { category: 'Access Control', count: 10 },
+    { category: 'Data Exposure', count: 8 }
+  ];
+}
+
+async function getRecentActivity(limit = 5) {
+  // This is a placeholder. In a real implementation, you would fetch
+  // recent model and report creations.
+  return [
+    {
+      type: 'create_model',
+      title: 'Banking Application',
+      link: '/results?subjectid=123',
+      date: new Date(Date.now() - 3600000).toISOString()
+    },
+    {
+      type: 'create_report',
+      title: 'Healthcare API',
+      link: '/reports/456',
+      date: new Date(Date.now() - 7200000).toISOString()
+    },
+    {
+      type: 'view_model',
+      title: 'E-Commerce Platform',
+      link: '/results?subjectid=789',
+      date: new Date(Date.now() - 10800000).toISOString()
+    }
+  ];
+}
+
+// List all threat models
+router.get('/prompts', async (req, res) => {
+  try {
+    // Get all prompt keys from Redis
+    const promptKeys = await client.keys('prompt:*:title');
+    
+    // Create a list of promises to fetch prompt details
+    const promptsPromises = promptKeys.map(async (key) => {
+      // Extract prompt ID from the key pattern prompt:$id:title
+      const id = key.split(':')[1];
+      
+      // Get prompt title
+      const title = await client.get(key);
+      
+      // Get creation timestamp
+      const createdAt = await client.get(`prompt:${id}:createdAt`) || new Date().toISOString();
+      
+      return {
+        id,
+        title,
+        createdAt
+      };
+    });
+    
+    // Resolve all promises to get prompt details
+    let prompts = await Promise.all(promptsPromises);
+    
+    // Sort by creation date (newest first)
+    prompts = prompts.sort((a, b) => {
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
+    
+    res.render('prompts', {
+      user: req.session.username,
+      prompts,
+      error: null,
+      success: null
+    });
+  } catch (error) {
+    console.error('Error fetching prompts:', error);
+    res.render('prompts', {
+      user: req.session.username,
+      prompts: [],
+      error: 'Failed to load prompts',
+      success: null
+    });
+  }

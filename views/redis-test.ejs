@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Redis Test Page</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { padding: 20px; }
+    .test-container { 
+      margin-bottom: 30px; 
+      padding: 20px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+    pre {
+      background-color: #f8f9fa;
+      padding: 15px;
+      border-radius: 5px;
+      max-height: 400px;
+      overflow: auto;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 class="mb-4">Redis Test Page</h1>
+    
+    <div class="test-container">
+      <h3>Test 1: Save Simple Value</h3>
+      <form id="simpleTestForm" class="mb-3">
+        <div class="mb-3">
+          <label for="testKey" class="form-label">Key</label>
+          <input type="text" class="form-control" id="testKey" value="test:simple:<%= Date.now() %>" required>
+        </div>
+        <div class="mb-3">
+          <label for="testValue" class="form-label">Value</label>
+          <input type="text" class="form-control" id="testValue" value="Test value at <%= new Date().toISOString() %>" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Save</button>
+      </form>
+      <div class="mt-3">
+        <h4>Result:</h4>
+        <pre id="simpleTestResult">No result yet.</pre>
+      </div>
+    </div>
+    
+    <div class="test-container">
+      <h3>Test 2: Save and Retrieve Long Text</h3>
+      <form id="longTextForm" class="mb-3">
+        <div class="mb-3">
+          <label for="longTextKey" class="form-label">Key</label>
+          <input type="text" class="form-control" id="longTextKey" value="test:longtext:<%= Date.now() %>" required>
+        </div>
+        <div class="mb-3">
+          <label for="longTextValue" class="form-label">Value</label>
+          <textarea class="form-control" id="longTextValue" rows="5" required>This is a longer test value with multiple lines.
+Line 2 of the test.
+Line 3 of the test.
+Testing special characters: !@#$%^&*()_+{}|:"<>?~`-=[]\\;',./
+Testing emoji: 😀 🚀 💻 🔥
+Current time: <%= new Date().toISOString() %></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary me-2">Save</button>
+        <button type="button" id="retrieveBtn" class="btn btn-secondary">Retrieve</button>
+      </form>
+      <div class="mt-3">
+        <h4>Save Result:</h4>
+        <pre id="longTextSaveResult">No result yet.</pre>
+        <h4>Retrieved Value:</h4>
+        <pre id="longTextRetrieveResult">No result yet.</pre>
+      </div>
+    </div>
+    
+    <div class="test-container">
+      <h3>Test 3: Check Redis Keys</h3>
+      <form id="keysForm" class="mb-3">
+        <div class="mb-3">
+          <label for="pattern" class="form-label">Pattern</label>
+          <input type="text" class="form-control" id="pattern" value="test:*" required>
+        </div>
+        <button type="submit" class="btn btn-primary">List Keys</button>
+      </form>
+      <div class="mt-3">
+        <h4>Keys Result:</h4>
+        <pre id="keysResult">No result yet.</pre>
+      </div>
+    </div>
+    
+    <div class="test-container">
+      <h3>Test 4: View Subject Data</h3>
+      <form id="viewSubjectForm" class="mb-3">
+        <div class="mb-3">
+          <label for="subjectId" class="form-label">Subject ID</label>
+          <input type="text" class="form-control" id="subjectId" placeholder="Enter subject ID" required>
+        </div>
+        <button type="submit" class="btn btn-primary">View Subject Data</button>
+      </form>
+      <div class="mt-3">
+        <h4>Subject Data:</h4>
+        <pre id="subjectDataResult">No result yet.</pre>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('simpleTestForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const key = document.getElementById('testKey').value;
+      const value = document.getElementById('testValue').value;
+      const resultElement = document.getElementById('simpleTestResult');
+      
+      try {
+        resultElement.textContent = 'Saving...';
+        
+        const response = await fetch('/redis-test/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key, value })
+        });
+        
+        const data = await response.json();
+        resultElement.textContent = JSON.stringify(data, null, 2);
+      } catch (error) {
+        resultElement.textContent = `Error: ${error.message}`;
+      }
+    });
+    
+    document.getElementById('longTextForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const key = document.getElementById('longTextKey').value;
+      const value = document.getElementById('longTextValue').value;
+      const resultElement = document.getElementById('longTextSaveResult');
+      
+      try {
+        resultElement.textContent = 'Saving...';
+        
+        const response = await fetch('/redis-test/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key, value })
+        });
+        
+        const data = await response.json();
+        resultElement.textContent = JSON.stringify(data, null, 2);
+      } catch (error) {
+        resultElement.textContent = `Error: ${error.message}`;
+      }
+    });
+    
+    document.getElementById('retrieveBtn').addEventListener('click', async function() {
+      const key = document.getElementById('longTextKey').value;
+      const resultElement = document.getElementById('longTextRetrieveResult');
+      
+      try {
+        resultElement.textContent = 'Retrieving...';
+        
+        const response = await fetch(`/redis-test/get?key=${encodeURIComponent(key)}`);
+        const data = await response.json();
+        
+        if (data.success) {
+          resultElement.textContent = data.value;
+        } else {
+          resultElement.textContent = `Error: ${data.error}`;
+        }
+      } catch (error) {
+        resultElement.textContent = `Error: ${error.message}`;
+      }
+    });
+    
+    document.getElementById('keysForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const pattern = document.getElementById('pattern').value;
+      const resultElement = document.getElementById('keysResult');
+      
+      try {
+        resultElement.textContent = 'Fetching keys...';
+        
+        const response = await fetch(`/redis-test/keys?pattern=${encodeURIComponent(pattern)}`);
+        const data = await response.json();
+        
+        resultElement.textContent = JSON.stringify(data, null, 2);
+      } catch (error) {
+        resultElement.textContent = `Error: ${error.message}`;
+      }
+    });
+    
+    document.getElementById('viewSubjectForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const subjectId = document.getElementById('subjectId').value;
+      const resultElement = document.getElementById('subjectDataResult');
+      
+      try {
+        resultElement.textContent = 'Fetching subject data...';
+        
+        const response = await fetch(`/redis-debug?subjectid=${encodeURIComponent(subjectId)}`);
+        const data = await response.json();
+        
+        resultElement.textContent = JSON.stringify(data, null, 2);
+      } catch (error) {
+        resultElement.textContent = `Error: ${error.message}`;
+      }
+    });
+  </script>
+</body>
+</html>

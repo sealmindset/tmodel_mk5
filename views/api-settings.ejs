@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<%- include('./partials/header.ejs') %>
+
+<div class="container mt-5">
+  <div class="row">
+    <div class="col-md-8 offset-md-2">
+      <div class="card">
+        <div class="card-header bg-primary text-white">
+          <h2 class="mb-0">API Settings</h2>
+        </div>
+        <div class="card-body">
+          <% if (message) { %>
+            <div class="alert alert-<%= message.type %> alert-dismissible fade show" role="alert">
+              <%= message.text %>
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+          <% } %>
+
+          <form action="/api-settings" method="POST">
+            <div class="mb-4">
+              <h4>LLM Provider Settings</h4>
+              <div class="mb-3">
+                <label class="form-label">LLM Provider</label>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="llmProvider" id="providerOpenAI" value="openai" <%= llmProvider === 'openai' ? 'checked' : '' %>>
+                  <label class="form-check-label" for="providerOpenAI">
+                    OpenAI API (Internet required)
+                  </label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="llmProvider" id="providerOllama" value="ollama" <%= llmProvider === 'ollama' ? 'checked' : '' %>>
+                  <label class="form-check-label" for="providerOllama">
+                    Ollama (Local models)
+                  </label>
+                </div>
+                <div class="form-text">Choose which LLM provider to use for threat analysis.</div>
+              </div>
+            </div>
+
+            <!-- OpenAI Settings -->
+            <div class="mb-4 provider-settings" id="openaiSettings" style="<%= llmProvider === 'openai' ? '' : 'display: none' %>">
+              <h4>OpenAI API Settings</h4>
+              <div class="mb-3">
+                <label for="openai-api-key" class="form-label">API Key</label>
+                <div class="input-group">
+                  <input 
+                    type="password" 
+                    class="form-control" 
+                    id="openai-api-key" 
+                    name="openaiApiKey"
+                    value="<%= openaiApiKey %>" 
+                    placeholder="sk-..." 
+                  />
+                  <button class="btn btn-outline-secondary" type="button" id="toggle-api-key">
+                    <i class="fas fa-eye"></i>
+                  </button>
+                </div>
+                <div class="form-text">Your OpenAI API key is stored securely and only used for making API requests.</div>
+              </div>
+              <div class="mb-3">
+                <label for="openai-model" class="form-label">Model</label>
+                <select class="form-select" id="openai-model" name="openaiModel">
+                  <option value="gpt-3.5-turbo" <%= openaiModel === 'gpt-3.5-turbo' ? 'selected' : '' %>>GPT-3.5 Turbo</option>
+                  <option value="gpt-4" <%= openaiModel === 'gpt-4' ? 'selected' : '' %>>GPT-4</option>
+                  <option value="gpt-4-turbo" <%= openaiModel === 'gpt-4-turbo' ? 'selected' : '' %>>GPT-4 Turbo</option>
+                </select>
+                <div class="form-text">Select which OpenAI model to use.</div>
+              </div>
+              <div class="d-flex align-items-center mb-3">
+                <div class="me-2">Status:</div> 
+                <div class="status-indicator <%= openaiStatus ? 'online' : 'offline' %>" 
+                     data-bs-toggle="tooltip" 
+                     title="OpenAI API: <%= openaiStatus ? 'Connected' : 'Disconnected' %>">
+                </div>
+                <div class="ms-2 text-<%= openaiStatus ? 'success' : 'danger' %>">
+                  <%= openaiStatus ? 'Connected' : 'Disconnected' %>
+                </div>
+              </div>
+              <div class="mb-3">
+                <button type="button" class="btn btn-sm btn-info" id="test-openai-connection">
+                  Test Connection
+                </button>
+                <span id="test-result" class="ms-2"></span>
+              </div>
+            </div>
+
+            <!-- Ollama Settings -->
+            <div class="mb-4 provider-settings" id="ollamaSettings" style="<%= llmProvider === 'ollama' ? '' : 'display: none' %>">
+              <h4>Ollama Settings</h4>
+              <div class="mb-3">
+                <label for="ollama-model" class="form-label">Model</label>
+                <select class="form-select" id="ollama-model" name="ollamaModel">
+                  <% availableOllamaModels.forEach(model => { %>
+                    <option value="<%= model.name %>" <%= ollamaModel === model.name ? 'selected' : '' %>><%= model.name %></option>
+                  <% }); %>
+                </select>
+                <div class="form-text">Select which local Ollama model to use.</div>
+              </div>
+              <div class="d-flex align-items-center mb-3">
+                <div class="me-2">Status:</div> 
+                <div class="status-indicator <%= ollamaStatus ? 'online' : 'offline' %>" 
+                     data-bs-toggle="tooltip" 
+                     title="Ollama API: <%= ollamaStatus ? 'Connected' : 'Disconnected' %>">
+                </div>
+                <div class="ms-2 text-<%= ollamaStatus ? 'success' : 'danger' %>">
+                  <%= ollamaStatus ? 'Connected' : 'Disconnected' %>
+                </div>
+              </div>
+              <div class="mb-3">
+                <button type="button" class="btn btn-sm btn-info" id="test-ollama-connection">
+                  Test Connection
+                </button>
+                <span id="test-ollama-result" class="ms-2"></span>
+              </div>
+            </div>
+
+            <div class="mb-4">
+              <h4>Redis Connection</h4>
+              <div class="mb-3">
+                <div class="d-flex align-items-center">
+                  <div class="me-2">Status:</div> 
+                  <div class="status-indicator <%= redisStatus ? 'online' : 'offline' %>" 
+                       data-bs-toggle="tooltip" 
+                       title="Redis: <%= redisStatus ? 'Connected' : 'Disconnected' %>">
+                  </div>
+                  <div class="ms-2 text-<%= redisStatus ? 'success' : 'danger' %>">
+                    <%= redisStatus ? 'Connected' : 'Disconnected' %>
+                  </div>
+                </div>
+              </div>
+              <div class="form-text">Redis connection is configured via environment variables.</div>
+            </div>
+
+            <div class="d-grid gap-2">
+              <button type="submit" class="btn btn-primary">Save Settings</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+      return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+
+    // Toggle API key visibility
+    const toggleButton = document.getElementById('toggle-api-key');
+    const apiKeyInput = document.getElementById('openai-api-key');
+    
+    if (toggleButton && apiKeyInput) {
+      toggleButton.addEventListener('click', () => {
+        const type = apiKeyInput.getAttribute('type') === 'password' ? 'text' : 'password';
+        apiKeyInput.setAttribute('type', type);
+        toggleButton.innerHTML = type === 'password' ? '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash"></i>';
+      });
+    }
+
+    // Handle provider selection
+    const providerOpenAI = document.getElementById('providerOpenAI');
+    const providerOllama = document.getElementById('providerOllama');
+    const openaiSettings = document.getElementById('openaiSettings');
+    const ollamaSettings = document.getElementById('ollamaSettings');
+
+    if (providerOpenAI && providerOllama && openaiSettings && ollamaSettings) {
+      providerOpenAI.addEventListener('change', () => {
+        openaiSettings.style.display = 'block';
+        ollamaSettings.style.display = 'none';
+      });
+
+      providerOllama.addEventListener('change', () => {
+        openaiSettings.style.display = 'none';
+        ollamaSettings.style.display = 'block';
+      });
+    }
+
+    // Test OpenAI connection
+    const testOpenAIButton = document.getElementById('test-openai-connection');
+    const testOpenAIResult = document.getElementById('test-result');
+    
+    if (testOpenAIButton && testOpenAIResult) {
+      testOpenAIButton.addEventListener('click', async () => {
+        testOpenAIResult.textContent = 'Testing...';
+        testOpenAIResult.className = 'ms-2 text-info';
+        
+        try {
+          const response = await fetch('/api/status?provider=openai');
+          if (response.ok) {
+            const data = await response.json();
+            
+            if (data.openai) {
+              testOpenAIResult.textContent = 'Connection successful!';
+              testOpenAIResult.className = 'ms-2 text-success';
+            } else {
+              testOpenAIResult.textContent = 'Connection failed. Check your API key.';
+              testOpenAIResult.className = 'ms-2 text-danger';
+            }
+          } else {
+            testOpenAIResult.textContent = 'Error checking status. Please try again.';
+            testOpenAIResult.className = 'ms-2 text-warning';
+          }
+        } catch (error) {
+          testOpenAIResult.textContent = 'Network error. Please check your connection.';
+          testOpenAIResult.className = 'ms-2 text-danger';
+          console.error('Error testing OpenAI connection:', error);
+        }
+      });
+    }
+
+    // Test Ollama connection
+    const testOllamaButton = document.getElementById('test-ollama-connection');
+    const testOllamaResult = document.getElementById('test-ollama-result');
+    
+    if (testOllamaButton && testOllamaResult) {
+      testOllamaButton.addEventListener('click', async () => {
+        testOllamaResult.textContent = 'Testing...';
+        testOllamaResult.className = 'ms-2 text-info';
+        
+        try {
+          const response = await fetch('/api/status?provider=ollama');
+          if (response.ok) {
+            const data = await response.json();
+            
+            if (data.ollama) {
+              testOllamaResult.textContent = 'Connection successful!';
+              testOllamaResult.className = 'ms-2 text-success';
+            } else {
+              testOllamaResult.textContent = 'Connection failed. Check that Ollama is running.';
+              testOllamaResult.className = 'ms-2 text-danger';
+            }
+          } else {
+            testOllamaResult.textContent = 'Error checking status. Please try again.';
+            testOllamaResult.className = 'ms-2 text-warning';
+          }
+        } catch (error) {
+          testOllamaResult.textContent = 'Network error. Is Ollama running?';
+          testOllamaResult.className = 'ms-2 text-danger';
+          console.error('Error testing Ollama connection:', error);
+        }
+      });
+    }
+  });
+</script>
+
+<%- include('./partials/footer.ejs') %>
+</html>

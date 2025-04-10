@@ -281,6 +281,30 @@ app.delete('/reports/:id', ensureAuthenticated, async (req, res) => {
 
 // This route is now handled in routes/main.js
 
+// API endpoint for checking current LLM provider and model
+app.get('/api/provider-status', ensureAuthenticated, async (req, res) => {
+  try {
+    const currentProvider = await getRedisValue(LLM_PROVIDER_REDIS_KEY, 'openai');
+    const isOllama = currentProvider === 'ollama';
+    const currentModel = isOllama ?
+      await getRedisValue(OLLAMA_MODEL_REDIS_KEY, 'llama3.3') :
+      await getRedisValue(OPENAI_MODEL_REDIS_KEY, 'gpt-3.5-turbo');
+    
+    res.json({
+      success: true,
+      currentProvider,
+      currentModel
+    });
+  } catch (error) {
+    console.error('Error retrieving provider status:', error);
+    res.json({
+      success: false,
+      error: 'Failed to retrieve provider status',
+      details: error.message
+    });
+  }
+});
+
 // SSE endpoint for real-time LLM status updates
 app.get('/llm-status', ensureAuthenticated, (req, res) => {
   console.log('SSE connection established');

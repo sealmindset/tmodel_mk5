@@ -180,9 +180,15 @@
             <!-- <button type="button" class="btn btn-sm btn-outline-success me-2" onclick="analyzeThreatModel('<%= subjectid %>')">
               <i class="bi bi-lightbulb me-1"></i>AI Suggestions
             </button> -->
-            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="generateMoreThreats('<%= subjectid %>')">
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="generateMoreBtn" onclick="generateMoreThreats('<%= subjectid %>')">
               <i class="bi bi-lightning-charge me-1"></i>Generate More Threats
             </button>
+            <div id="ollamaProgress" class="d-none ms-2 align-items-center">
+              <div class="spinner-border spinner-border-sm text-primary me-2" role="status">
+                <span class="visually-hidden">Processing...</span>
+              </div>
+              <span class="text-primary" id="ollamaStatus">Processing with Ollama...</span>
+            </div>
             <!-- Debug Info button removed but functionality preserved -->
             <!-- <button type="button" class="btn btn-sm btn-outline-danger ms-2" onclick="showDebugModal('<%= subjectid %>')">
               <i class="bi bi-bug me-1"></i>Debug Info
@@ -1731,8 +1737,33 @@
   <script>
     // Function to handle generating more threats with AJAX
     async function generateMoreThreats(subjectId) {
-      // Show loading spinner
-      showLoadingModal('Generating more threats...');
+      // Get elements for showing progress
+      const generateBtn = document.getElementById('generateMoreBtn');
+      const ollamaProgress = document.getElementById('ollamaProgress');
+      const ollamaStatus = document.getElementById('ollamaStatus');
+      
+      // Check if current provider is Ollama
+      let isOllama = false;
+      try {
+        const statusResponse = await fetch('/api/provider-status');
+        const statusData = await statusResponse.json();
+        isOllama = statusData.currentProvider === 'ollama';
+      } catch(e) {
+        console.error('Could not determine current provider:', e);
+      }
+      
+      // Disable button and show appropriate indicator
+      generateBtn.disabled = true;
+      
+      if (isOllama) {
+        // Show Ollama-specific indicator instead of modal
+        ollamaProgress.classList.remove('d-none');
+        ollamaProgress.classList.add('d-flex');
+        ollamaStatus.textContent = 'Processing with Ollama... (this may take a minute or two)';
+      } else {
+        // Show generic loading modal for OpenAI
+        showLoadingModal('Generating more threats...');
+      }
       
       try {
         // Make AJAX request to generate more threats
@@ -1749,8 +1780,11 @@
         // Save debug data to temp object for access in other functions
         window.generateMoreDebugData = data;
         
-        // Hide loading modal
+        // Hide all loading indicators
         hideLoadingModal();
+        ollamaProgress.classList.remove('d-flex');
+        ollamaProgress.classList.add('d-none');
+        generateBtn.disabled = false;
         
         if (data.success) {
           // Show success message
@@ -1771,7 +1805,12 @@
           }, 500);
         }
       } catch (error) {
+        // Hide all loading indicators
         hideLoadingModal();
+        ollamaProgress.classList.remove('d-flex');
+        ollamaProgress.classList.add('d-none');
+        generateBtn.disabled = false;
+        
         showAlert(`Failed to generate more threats: ${error.message}`, 'danger');
         console.error('Generate More Error:', error);
       }

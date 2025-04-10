@@ -1296,24 +1296,74 @@ app.post('/generate-more', ensureAuthenticated, async (req, res) => {
       debugData.originalPrompt = originalPrompt;
     }
 
-    // Get API key - First try user's key, then fallback to environment
-    let apiKey = await client.hGet(`user:${userEmail}`, 'apiKey');
-    if (!apiKey) {
-      apiKey = process.env.API_KEY;
-      console.log('Using API key from environment variable');
-      debugData.apiKeySource = 'environment';
+    // Get the LLM provider and model first
+    console.log('Retrieving LLM provider from Redis key:', LLM_PROVIDER_REDIS_KEY);
+    let llmProvider;
+    try {
+      const rawValue = await client.get(LLM_PROVIDER_REDIS_KEY);
+      console.log(`Raw Redis value for ${LLM_PROVIDER_REDIS_KEY}:`, rawValue);
       
-      if (!apiKey) {
-        debugData.error = 'No API key available';
-        await client.set(`debug:${subjectid}:generate-more`, JSON.stringify(debugData));
-        return res.json({
-          success: false,
-          error: 'API Key not found. Please add an API key in your profile or set it in the environment.',
-          debug: debugData
-        });
+      llmProvider = rawValue || 'openai'; // Default to 'openai' if null/undefined
+      console.log(`Current LLM provider from Redis: ${llmProvider}`);
+      
+      // If provider value is empty, set a default, but respect the value if it's valid
+      if (!rawValue) {
+        // Only set default if completely missing
+        console.log(`Missing LLM provider value, setting default: openai`);
+        await client.set(LLM_PROVIDER_REDIS_KEY, 'openai');
+        llmProvider = 'openai';
+      } else if (rawValue === 'ollama' || rawValue === 'openai') {
+        // Use the valid provider that was saved in settings
+        console.log(`Using saved provider from settings: ${rawValue}`);
+        llmProvider = rawValue;
+      } else {
+        // Invalid value
+        console.log(`Invalid LLM provider value: ${rawValue}, setting default: openai`);
+        await client.set(LLM_PROVIDER_REDIS_KEY, 'openai');
+        llmProvider = 'openai';
       }
+    } catch (error) {
+      console.error('Error getting LLM provider from Redis:', error);
+      llmProvider = 'openai'; // Default to 'openai' on error
+      debugData.error = `Redis error: ${error.message}`;
+    }
+
+    // Set isOllama flag - this determines which API we'll use
+    const isOllama = llmProvider === 'ollama';
+    debugData.llmProvider = llmProvider;
+    debugData.isOllama = isOllama;
+    
+    // Get appropriate model based on provider
+    let model;
+    if (isOllama) {
+      model = await client.get(OLLAMA_MODEL_REDIS_KEY) || 'llama3.3';
     } else {
-      debugData.apiKeySource = 'user profile';
+      model = await client.get(OPENAI_MODEL_REDIS_KEY) || 'gpt-3.5-turbo';
+    }
+    console.log(`Using model: ${model} for provider: ${llmProvider}`);
+    
+    // Only check for API key if using OpenAI
+    let apiKey = null;
+    if (!isOllama) {
+      // Get API key - First try user's key, then fallback to environment
+      apiKey = await client.hGet(`user:${userEmail}`, 'apiKey');
+      if (!apiKey) {
+        apiKey = process.env.API_KEY;
+        console.log('Using API key from environment variable');
+        debugData.apiKeySource = 'environment';
+        
+        if (!apiKey) {
+          debugData.error = 'No API key available for OpenAI';
+          await client.set(`debug:${subjectid}:generate-more`, JSON.stringify(debugData));
+          return res.json({
+            success: false,
+            error: 'OpenAI API Key not found. Please add an API key in your profile or set it in the environment, or switch to Ollama provider in settings.',
+            debug: debugData
+          });
+        }
+      } else {
+        debugData.apiKeySource = 'user profile';
+      }
     }
     console.log(`API key source: ${debugData.apiKeySource}`);
 
@@ -1338,43 +1388,12 @@ app.post('/generate-more', ensureAuthenticated, async (req, res) => {
     console.log(`Existing response found: (length: ${existingResponse.length})`);
     debugData.existingResponseLength = existingResponse.length;
     
-    // Get the LLM provider and model
-    console.log('Retrieving LLM provider from Redis key:', LLM_PROVIDER_REDIS_KEY);
-    let llmProvider;
-    try {
-      const rawValue = await client.get(LLM_PROVIDER_REDIS_KEY);
-      console.log(`Raw Redis value for ${LLM_PROVIDER_REDIS_KEY}:`, rawValue);
-      
-      llmProvider = rawValue || 'openai'; // Default to 'openai' if null/undefined
-      console.log(`Current LLM provider from Redis: ${llmProvider}`);
-      
-      // If provider value is empty or invalid, store the default one
-      if (!rawValue || (rawValue !== 'openai' && rawValue !== 'ollama')) {
-        console.log(`Invalid or missing LLM provider value, setting default: openai`);
-        await client.set(LLM_PROVIDER_REDIS_KEY, 'openai');
-        llmProvider = 'openai';
-      }
-    } catch (error) {
-      console.error('Error retrieving LLM provider from Redis:', error);
-      llmProvider = 'openai'; // Default to 'openai' on error
-      console.log(`Using default LLM provider due to error: ${llmProvider}`);
-    }
-    
+    // We already have the LLM provider and model from earlier
+    console.log(`Using previously determined LLM provider: ${llmProvider}`);
     debugData.llmProvider = llmProvider;
     debugData.llmProviderRedisKey = LLM_PROVIDER_REDIS_KEY;
-    
-    // Determine if we should use Ollama
-    const isOllama = llmProvider === 'ollama';
     console.log(`Is using Ollama: ${isOllama}`);
     debugData.isUsingOllama = isOllama;
-    
-    // Get appropriate model based on the provider
-    let model;
-    if (isOllama) {
-      model = await getRedisValue(OLLAMA_MODEL_REDIS_KEY, 'llama3.3');
-    } else {
-      model = await getRedisValue(OPENAI_MODEL_REDIS_KEY, 'gpt-3.5-turbo');
-    }
     
     // Fallback to model used in original request if available
     const originalModel = await getModel(subjectid);
